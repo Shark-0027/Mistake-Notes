@@ -11,3 +11,4 @@ dist/
 htmlcov/
 postgres-data/
 .uv-cache/
+*.tsbuildinfo
