@@ -1,0 +1,135 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>错题整理与个人笔记 · 题目附件</title><style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#1b2d46;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.8}header{padding:46px max(24px,calc((100vw - 1200px)/2));background:#132f50;color:white}header small{color:#a9c7e7;letter-spacing:.12em}header h1{margin:8px 0;font-size:30px}main{max-width:1250px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;padding:28px 24px}nav{position:sticky;top:22px;align-self:start;font-size:14px}nav a{display:block;padding:7px 12px;text-decoration:none;color:#356286;border-radius:7px}nav a:hover{background:#dfeafa}article{min-width:0}section,.files,figure{background:white;border:1px solid #e0e7f0;border-radius:16px;padding:25px 30px;margin:0 0 20px}section{scroll-margin-top:20px}h1{font-size:25px;line-height:1.5}h2{font-size:21px;margin-top:28px}h3{font-size:18px}a{color:#1967a8;text-underline-offset:3px}table{border-collapse:collapse;font-size:14px;width:100%;display:block;overflow:auto}td,th{border:1px solid #dce5ef;padding:9px 12px;text-align:left}th{background:#edf3fa;white-space:nowrap}td{min-width:120px}pre{background:#112940;color:#e6f2ff;border-radius:9px;padding:17px;overflow:auto}code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}p code,li code,td code{background:#edf2f7;padding:2px 5px;border-radius:4px}img{width:100%;height:auto}figcaption{font-size:13px;text-align:right}.files a{display:inline-block;margin:4px 6px 4px 0;background:#edf4fa;border:1px solid #dce7f2;border-radius:7px;padding:4px 9px;font-size:13px;max-width:100%;overflow-wrap:anywhere}.files h2{margin-top:0}.muted{color:#69819d;font-size:13px} @media(max-width:780px){main{display:block;padding:16px}nav{position:static;margin-bottom:20px}nav a{display:inline-block}section,.files,figure{padding:18px}header{padding:30px 20px}header h1{font-size:26px}} @media print{nav{display:none}main{display:block}header{color:#172c4c;background:white}section,.files,figure{break-inside:avoid}}
+    </style><header><small>QUESTION 03 · ATTACHMENTS</small><h1>错题整理与个人笔记</h1></header><main><nav><a href="#section-0">使用说明</a><a href="#section-1">数据字段与显示规则</a><a href="#files">附件文件</a></nav><article><section id="section-0"><h1>错题整理与个人笔记 · 配套说明</h1>
+<p>本附件与题目中的 <code>wrong-answers-20.zip</code> 配合使用。这里不再重复放置数据，以免出现多个不一致版本。</p>
+<p>原数据包 SHA-256：<code>9b87ca6dab7929f1e4b417857e02509e6860988c06eebdc9ab511fb6ccfeb337</code></p>
+<ul>
+<li><code>field-dictionary.md</code>：字段、实体关系、空值和显示规则。</li>
+<li><code>record-index.csv</code>：逐条数据归属与分数概况。</li>
+<li><code>expected-filters.json</code>：根据数据包实际计算的筛选结果。</li>
+<li><code>test-cases.csv</code>：包含笔记保存、清空、隔离、异常渲染与持久化的验收步骤。</li>
+</ul>
+<p>20 条是历史失分作答，涉及 18 道题、13 个匿名学生、6 个课程班级、7 份作业。历史分数与公开反馈不是本次考核要重算的标准答案。不要求模型判题或 AI 生成反馈。</p>
+</section><section id="section-1"><h1>数据字段与显示规则</h1>
+<h2>顶层实体</h2>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>类型</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>schemaVersion / description</td>
+<td>字符串</td>
+<td>数据版本与来源说明</td>
+</tr>
+<tr>
+<td>students</td>
+<td>对象数组</td>
+<td>匿名学生和仅供本地测试的账号</td>
+</tr>
+<tr>
+<td>courses</td>
+<td>对象数组</td>
+<td>课程班级，字段 id / name</td>
+</tr>
+<tr>
+<td>assignments</td>
+<td>对象数组</td>
+<td>来源作业，字段 id / courseId / title</td>
+</tr>
+<tr>
+<td>records</td>
+<td>对象数组</td>
+<td>20 条失分作答记录</td>
+</tr>
+</tbody></table>
+<p>students 的 id 是关联键；name 是显示名；login/testPassword 用于初始化本地测试账号；role 为 STUDENT。测试密码不是生产密码。账号权限由后端会话决定，不能由客户端提交的 studentId 决定。</p>
+<h2>records 中每条记录</h2>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>含义 / 使用方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>id</td>
+<td>字符串</td>
+<td>作答记录 ID；笔记归属到该记录</td>
+</tr>
+<tr>
+<td>studentId</td>
+<td>字符串</td>
+<td>关联 students.id，决定可访问者</td>
+</tr>
+<tr>
+<td>courseId / assignmentId</td>
+<td>字符串</td>
+<td>课程与来源作业</td>
+</tr>
+<tr>
+<td>questionId</td>
+<td>字符串</td>
+<td>题目 ID；同一道题可能有不同学生作答，不能据此合并记录</td>
+</tr>
+<tr>
+<td>questionType</td>
+<td>枚举</td>
+<td>CALCULATION / SINGLE_CHOICE</td>
+</tr>
+<tr>
+<td>questionText</td>
+<td>字符串</td>
+<td>原题干，保留结构和内容</td>
+</tr>
+<tr>
+<td>questionFormat</td>
+<td>枚举</td>
+<td>markdown_latex</td>
+</tr>
+<tr>
+<td>originalAnswer</td>
+<td>字符串</td>
+<td>原始作答，不改成参考答案</td>
+</tr>
+<tr>
+<td>answerFormat</td>
+<td>枚举</td>
+<td>html / text_latex，分别处理 HTML 与文本数学公式</td>
+</tr>
+<tr>
+<td>score / maxScore</td>
+<td>数字</td>
+<td>已公布历史得分 / 满分，允许小数，原样显示</td>
+</tr>
+<tr>
+<td>feedback</td>
+<td>字符串或 null</td>
+<td>公开批改反馈；null 显示“暂无评语”</td>
+</tr>
+<tr>
+<td>gradingSource</td>
+<td>枚举</td>
+<td>AI / TEACHER，历史成绩来源</td>
+</tr>
+<tr>
+<td>knowledgePoints</td>
+<td>字符串数组</td>
+<td>知识点标签；空数组显示“未标注”</td>
+</tr>
+<tr>
+<td>initialNote</td>
+<td>字符串</td>
+<td>初始笔记；本包均为空字符串。候选人实现中另设可编辑的错因与复习笔记字段</td>
+</tr>
+</tbody></table>
+<p>学生填写的错因和复习笔记是独立可编辑数据，不覆盖 feedback 或 originalAnswer。空字符串保存表示清空，不能被当作“不修改”。</p>
+<h2>筛选和显示</h2>
+<p>先限定当前学生，再叠加课程、知识点、题目关键词，各已填写条件用 AND。expected-filters.json 的 keyword 是 questionText 中确实存在的连续中文词，便于不受公式渲染影响地核对。</p>
+<p>HTML 按安全规则呈现文字、段落和公式，不能直接执行原始 HTML 的脚本或事件；验收可在本地副本另加恶意标签检查，不改交付原包。公式异常时显示可读原文，不丢整段内容或擅自修改数学含义。</p>
+<p>本包没有评语的记录是 wrong_010；没有知识点的记录是 wrong_001～wrong_007。4 条零分、16 条部分失分。具体归属以 record-index.csv 为准。</p>
+</section><div class="files" id="files"><h2>附件文件</h2><a href="README.md">README.md</a><a href="expected-filters.json">expected-filters.json</a><a href="field-dictionary.md">field-dictionary.md</a><a href="record-index.csv">record-index.csv</a><a href="test-cases.csv">test-cases.csv</a><p class="muted">本页可离线阅读。CSV 可用电子表格软件打开；外部来源链接需要联网。更新日期：2026-10-04。</p></div></article></main></html>

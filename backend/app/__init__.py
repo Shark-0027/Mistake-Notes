@@ -1,0 +1,2 @@
+"""Mistake Notes backend package."""
+

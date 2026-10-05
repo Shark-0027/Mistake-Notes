@@ -1,0 +1,99 @@
+{
+  "counts": {
+    "records": 20,
+    "students": 13,
+    "courses": 6,
+    "assignments": 7,
+    "distinctQuestions": 18,
+    "questionTypes": {
+      "CALCULATION": 16,
+      "SINGLE_CHOICE": 4
+    },
+    "zeroScores": 4,
+    "partialScores": 16,
+    "missingFeedback": 1,
+    "untagged": 7
+  },
+  "perStudent": {
+    "student_001": 5,
+    "student_002": 1,
+    "student_003": 1,
+    "student_004": 2,
+    "student_005": 1,
+    "student_006": 2,
+    "student_007": 2,
+    "student_008": 1,
+    "student_009": 1,
+    "student_010": 1,
+    "student_011": 1,
+    "student_012": 1,
+    "student_013": 1
+  },
+  "perCourse": {
+    "course_001": 5,
+    "course_002": 4,
+    "course_003": 1,
+    "course_004": 3,
+    "course_005": 2,
+    "course_006": 5
+  },
+  "examples": [
+    {
+      "name": "登录后只展示本人记录",
+      "login": "student_001",
+      "expectedIds": [
+        "wrong_001",
+        "wrong_002",
+        "wrong_003",
+        "wrong_004",
+        "wrong_005"
+      ]
+    },
+    {
+      "name": "课程筛选仍保留用户权限",
+      "login": "student_001",
+      "courseId": "course_001",
+      "expectedIds": [
+        "wrong_001",
+        "wrong_002",
+        "wrong_003",
+        "wrong_004",
+        "wrong_005"
+      ]
+    },
+    {
+      "name": "越权详情与修改笔记",
+      "login": "student_001",
+      "targetRecordId": "wrong_006",
+      "expected": "详情和笔记修改均被服务端拒绝"
+    },
+    {
+      "name": "笔记持久化",
+      "login": "student_001",
+      "recordId": "wrong_001",
+      "steps": [
+        "保存笔记：复习行列式",
+        "重新登录并重建应用容器",
+        "再次查看该题",
+        "清空笔记并保存"
+      ],
+      "expected": "重建后内容仍在；清空后为空，不恢复旧笔记"
+    },
+    {
+      "name": "空值显示",
+      "missingFeedbackIds": [
+        "wrong_010"
+      ],
+      "untaggedIds": [
+        "wrong_001",
+        "wrong_002",
+        "wrong_003",
+        "wrong_004",
+        "wrong_005",
+        "wrong_006",
+        "wrong_007"
+      ],
+      "expected": "分别显示暂无评语、未标注，不捏造内容"
+    }
+  ]
+}

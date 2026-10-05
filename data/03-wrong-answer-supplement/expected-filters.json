@@ -1,0 +1,146 @@
+{
+  "datasetPackageSha256": "9b87ca6dab7929f1e4b417857e02509e6860988c06eebdc9ab511fb6ccfeb337",
+  "cases": [
+    {
+      "caseId": "FILTER-student_001",
+      "login": "student_001",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_001",
+        "wrong_002",
+        "wrong_003",
+        "wrong_004",
+        "wrong_005"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_002",
+      "login": "student_002",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_006"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_003",
+      "login": "student_003",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_007"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_004",
+      "login": "student_004",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_008",
+        "wrong_009"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_005",
+      "login": "student_005",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_010"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_006",
+      "login": "student_006",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_011",
+        "wrong_018"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_007",
+      "login": "student_007",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_012",
+        "wrong_020"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_008",
+      "login": "student_008",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_013"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_009",
+      "login": "student_009",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_014"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_010",
+      "login": "student_010",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_015"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_011",
+      "login": "student_011",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_016"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_012",
+      "login": "student_012",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_017"
+      ]
+    },
+    {
+      "caseId": "FILTER-student_013",
+      "login": "student_013",
+      "filters": {},
+      "expectedRecordIds": [
+        "wrong_019"
+      ]
+    },
+    {
+      "caseId": "FILTER-combined",
+      "login": "student_004",
+      "filters": {
+        "courseId": "course_002",
+        "knowledgePoint": "向量组的秩"
+      },
+      "expectedRecordIds": [
+        "wrong_008",
+        "wrong_009"
+      ]
+    },
+    {
+      "caseId": "FILTER-keyword",
+      "login": "student_001",
+      "filters": {
+        "keyword": "写出四阶"
+      },
+      "expectedRecordIds": [
+        "wrong_001"
+      ]
+    },
+    {
+      "caseId": "FILTER-empty",
+      "login": "student_001",
+      "filters": {
+        "keyword": "不存在的关键词_20261004"
+      },
+      "expectedRecordIds": []
+    }
+  ]
+}

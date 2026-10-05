@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "students",
+    "courses",
+    "assignments",
+    "records"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "description": {
+      "type": "string"
+    },
+    "students": {
+      "type": "array",
+      "minItems": 2
+    },
+    "courses": {
+      "type": "array",
+      "minItems": 2
+    },
+    "assignments": {
+      "type": "array",
+      "minItems": 1
+    },
+    "records": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "studentId",
+          "courseId",
+          "assignmentId",
+          "questionId",
+          "questionType",
+          "questionText",
+          "questionFormat",
+          "originalAnswer",
+          "answerFormat",
+          "score",
+          "maxScore",
+          "feedback",
+          "gradingSource",
+          "knowledgePoints",
+          "initialNote"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "studentId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "courseId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assignmentId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questionType": {
+            "enum": [
+              "CALCULATION",
+              "SINGLE_CHOICE",
+              "PROOF",
+              "SHORT_ANSWER"
+            ]
+          },
+          "questionText": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questionFormat": {
+            "const": "markdown_latex"
+          },
+          "originalAnswer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answerFormat": {
+            "enum": [
+              "html",
+              "text_latex"
+            ]
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxScore": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "feedback": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gradingSource": {
+            "enum": [
+              "AI",
+              "TEACHER"
+            ]
+          },
+          "knowledgePoints": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "initialNote": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
