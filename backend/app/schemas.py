@@ -59,6 +59,7 @@ class RecordDetail(RecordSummary):
 
 
 class NoteUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     cause_note: str = Field(default="", max_length=20_000)
     review_note: str = Field(default="", max_length=20_000)
-

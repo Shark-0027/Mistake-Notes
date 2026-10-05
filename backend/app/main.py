@@ -8,6 +8,7 @@ from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 from .api_auth import router as auth_router
+from .api_records import router as records_router
 from .config import Settings, get_settings
 from .database import Base, SessionLocal, engine
 from .seed import seed_database
@@ -47,8 +48,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(auth_router)
+    app.include_router(records_router)
     return app
 
 
 app = create_app()
-
