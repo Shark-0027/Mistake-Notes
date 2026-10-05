@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -49,6 +50,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(records_router)
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str) -> FileResponse:
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="接口不存在")
+        dist = settings.frontend_dist.resolve()
+        candidate = (dist / full_path).resolve()
+        if candidate.is_file() and candidate.is_relative_to(dist):
+            return FileResponse(candidate)
+        index = dist / "index.html"
+        if not index.is_file():
+            raise HTTPException(status_code=404, detail="前端构建产物不存在")
+        return FileResponse(index)
+
     return app
 
 
