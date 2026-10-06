@@ -152,7 +152,7 @@ FastAPI
 
 前端选择 Ant Design 而不是 shadcn：登录表单、选择器、骨架屏、空状态、结果页和消息反馈都由成熟组件承担可访问性与交互状态；应用层 CSS 变量逐项承载 prompt 规定的 light/dark token。React 与 KaTeX 仍由源码在 Docker 多阶段构建中打包。
 
-后端采用同步 SQLAlchemy，原因是数据规模小、事务边界清晰、Compose 验收更直接。Docker 运行阶段执行 `uv sync --frozen --no-dev`，开发测试依赖不进入生产镜像。
+后端采用同步 SQLAlchemy，原因是数据规模小、事务边界清晰、Compose 验收更直接。Docker 运行阶段执行 `uv sync --frozen`，确保锁定版本可复现。
 
 ## 本项目自研范围与开源来源
 
