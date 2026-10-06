@@ -128,6 +128,7 @@ Windows PowerShell：
 - 查询他人记录返回 `403`；不存在的记录返回 `404`。
 - 密码使用 Argon2 哈希入库；登录失败统一返回“账号或密码错误”。
 - 修改接口要求 `X-CSRF-Token`，令牌随签名会话下发并做常量时间比较。
+- `/api/records` 与 `/api/catalog` 同时接受 `course` 和 `courseId`，两种参数名语义完全一致。
 - 空字符串保存表示清空，不会被解释为不修改。
 
 ## Markdown、公式与 HTML 清洗

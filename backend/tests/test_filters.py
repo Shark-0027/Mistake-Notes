@@ -28,3 +28,28 @@ def test_catalog_is_scoped_to_current_student(client: TestClient) -> None:
     assert [course["id"] for course in response.json()["courses"]] == ["course_002"]
     assert response.json()["knowledge_points"]
 
+
+def test_course_aliases_apply_for_records_and_catalog(client: TestClient) -> None:
+    login(client, "student_001")
+    for parameter in ("course", "courseId"):
+        other_course = client.get("/api/records", params={parameter: "course_002"})
+        own_course = client.get("/api/records", params={parameter: "course_001"})
+        assert other_course.status_code == 200
+        assert other_course.json() == []
+        assert own_course.status_code == 200
+        assert [item["id"] for item in own_course.json()] == [
+            "wrong_001",
+            "wrong_002",
+            "wrong_003",
+            "wrong_004",
+            "wrong_005",
+        ]
+
+    login(client, "student_004")
+    for parameter in ("course", "courseId"):
+        wrong_course = client.get("/api/catalog", params={parameter: "course_001"})
+        own_course = client.get("/api/catalog", params={parameter: "course_002"})
+        assert wrong_course.status_code == 200
+        assert wrong_course.json()["knowledge_points"] == []
+        assert own_course.status_code == 200
+        assert own_course.json()["knowledge_points"]

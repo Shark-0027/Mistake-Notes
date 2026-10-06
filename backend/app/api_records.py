@@ -69,9 +69,11 @@ def record_detail(record: Record) -> RecordDetail:
 @router.get("/catalog", response_model=CatalogResponse)
 def catalog(
     course_id: str | None = Query(default=None, alias="course"),
+    course_id_compat: str | None = Query(default=None, alias="courseId"),
     student: Student = Depends(require_student),
     db: Session = Depends(get_db),
 ) -> CatalogResponse:
+    effective_course_id = course_id or course_id_compat
     courses = db.scalars(
         select(Course)
         .join(Record, Record.course_id == Course.id)
@@ -91,8 +93,8 @@ def catalog(
         .distinct()
         .order_by(KnowledgePoint.name)
     )
-    if course_id:
-        points_query = points_query.where(Record.course_id == course_id)
+    if effective_course_id:
+        points_query = points_query.where(Record.course_id == effective_course_id)
 
     return CatalogResponse(
         courses=[CourseOut(id=course.id, name=course.name) for course in courses],
@@ -103,11 +105,13 @@ def catalog(
 @router.get("/records", response_model=list[RecordSummary])
 def list_records(
     course_id: str | None = Query(default=None, alias="course"),
+    course_id_compat: str | None = Query(default=None, alias="courseId"),
     knowledge_point: str | None = Query(default=None, alias="knowledgePoint"),
     keyword: str | None = Query(default=None),
     student: Student = Depends(require_student),
     db: Session = Depends(get_db),
 ) -> list[RecordSummary]:
+    effective_course_id = course_id or course_id_compat
     query = (
         select(Record)
         .options(
@@ -118,8 +122,8 @@ def list_records(
         .where(Record.student_id == student.id)
         .order_by(Record.id)
     )
-    if course_id:
-        query = query.where(Record.course_id == course_id)
+    if effective_course_id:
+        query = query.where(Record.course_id == effective_course_id)
     if knowledge_point:
         query = query.where(
             Record.knowledge_points.any(KnowledgePoint.name == knowledge_point)
