@@ -63,7 +63,7 @@ export function LoginPage() {
             <Input
               autoComplete="username"
               prefix={<UserRound size={15} />}
-              placeholder="student_001"
+              placeholder="请输入账号"
             />
           </Form.Item>
           <Form.Item

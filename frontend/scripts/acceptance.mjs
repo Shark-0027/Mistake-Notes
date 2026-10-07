@@ -599,6 +599,46 @@ try {
     await page.getByText("共 1 条").waitFor();
     await context.close();
   });
+
+  await runCase("登录占位、图片按钮位置与冗余文案", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle" });
+    assert.equal(
+      await page.locator('input[autocomplete="username"]').getAttribute("placeholder"),
+      "请输入账号",
+    );
+
+    await login(page, "student_001");
+    await openRecord(page, "wrong_001");
+    assert.equal(
+      await page
+        .locator(".note-image-heading")
+        .getByRole("button", { name: "插入图片" })
+        .count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .getByText(
+          "以下内容为来源系统中的历史数据，仅在页面中展示，不会重算或补全。",
+          { exact: true },
+        )
+        .count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .getByText(
+          "错因和复习笔记独立保存；覆盖当前版本或另存新版本，历史反馈不会被修改。",
+          { exact: true },
+        )
+        .count(),
+      0,
+    );
+    await context.close();
+  });
+
   await runCase("主题切换即时生效", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

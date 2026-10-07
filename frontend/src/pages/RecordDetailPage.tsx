@@ -96,7 +96,7 @@ function SectionHeading({
   index: number;
   icon: React.ReactNode;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <div className="section-heading">
@@ -104,7 +104,7 @@ function SectionHeading({
       <span className="section-icon">{icon}</span>
       <div>
         <h2>{title}</h2>
-        <p>{description}</p>
+        {description ? <p>{description}</p> : null}
       </div>
     </div>
   );
@@ -539,7 +539,6 @@ export function RecordDetailPage() {
               index={2}
               icon={<History size={15} />}
               title="历史批改反馈"
-              description="以下内容为来源系统中的历史数据，仅在页面中展示，不会重算或补全。"
             />
             <div className="feedback-grid">
               <div className="feedback-score">
@@ -578,7 +577,6 @@ export function RecordDetailPage() {
               index={3}
               icon={<NotebookPen size={15} />}
               title="我的笔记"
-              description="错因和复习笔记独立保存；覆盖当前版本或另存新版本，历史反馈不会被修改。"
             />
             <NoteEditor {...editorProps} />
           </Card>

@@ -552,9 +552,10 @@ textarea {
   margin-bottom: 16px;
 }
 
-.note-tool-actions {
+.note-image-heading-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 9px;
 }
@@ -608,7 +609,7 @@ textarea {
   margin-bottom: 11px;
 }
 
-.note-image-heading > span:last-child {
+.note-image-heading-actions > span {
   color: var(--muted);
   font-size: 12px;
 }
@@ -982,8 +983,9 @@ textarea {
     flex-direction: column;
   }
 
-  .note-tool-actions,
+  .note-image-heading-actions,
   .note-action-buttons {
+    align-items: flex-start;
     justify-content: flex-start;
   }
 

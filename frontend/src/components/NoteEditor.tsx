@@ -82,28 +82,9 @@ export function NoteEditor({
         >
           {note.label || `版本 ${recordVersion}`}
         </Tag>
-        <div className="note-tool-actions">
-          <input
-            ref={imageInputRef}
-            className="note-image-input"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            aria-label={idPrefix ? "小窗选择笔记图片" : "选择笔记图片"}
-            onChange={handleImageSelection}
-          />
-          <Button
-            icon={<ImagePlus size={15} />}
-            loading={imageUploading}
-            disabled={!csrfToken || imageUploading}
-            onClick={() => imageInputRef.current?.click()}
-          >
-            插入图片
-          </Button>
-          <Button icon={<History size={15} />} onClick={onOpenHistory}>
-            历史版本
-          </Button>
-        </div>
+        <Button icon={<History size={15} />} onClick={onOpenHistory}>
+          历史版本
+        </Button>
       </div>
 
       {csrfToken ? null : (
@@ -173,7 +154,26 @@ export function NoteEditor({
       <div className="note-image-block">
         <div className="note-image-heading">
           <span className="field-label">笔记图片</span>
-          <span>单张不超过 5MB，支持 JPG、PNG、WebP</span>
+          <div className="note-image-heading-actions">
+            <span>单张不超过 5MB，支持 JPG、PNG、WebP</span>
+            <input
+              ref={imageInputRef}
+              className="note-image-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              aria-label={idPrefix ? "小窗选择笔记图片" : "选择笔记图片"}
+              onChange={handleImageSelection}
+            />
+            <Button
+              icon={<ImagePlus size={15} />}
+              loading={imageUploading}
+              disabled={!csrfToken || imageUploading}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              插入图片
+            </Button>
+          </div>
         </div>
         {imageError ? <Alert type="error" showIcon message={imageError} /> : null}
         {imagesLoading ? (
