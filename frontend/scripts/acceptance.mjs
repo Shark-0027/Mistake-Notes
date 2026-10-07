@@ -78,6 +78,59 @@ try {
     await context.close();
   });
 
+  await runCase("笔记版本历史可创建、查看并恢复", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await openRecord(page, "wrong_001");
+
+    const oldCause = `历史版本基线-${Date.now()}`;
+    await page.locator("#cause-note").fill(oldCause);
+    await page.locator("#review-note").fill("历史版本复习基线");
+    await page.getByRole("button", { name: "保存笔记" }).click();
+    await page.waitForSelector(".ant-message-success");
+
+    const badge = page.locator(".note-version-badge");
+    const currentVersion = Number((await badge.innerText()).match(/\d+/)?.[0]);
+    assert.ok(Number.isInteger(currentVersion));
+
+    const newCause = `${oldCause}-新版本`;
+    await page.locator("#cause-note").fill(newCause);
+    await page.locator("#review-note").fill("另存版本复习内容");
+    await page.getByRole("button", { name: "另存为新版本" }).click();
+    await page.waitForSelector(".ant-message-success");
+    await page.getByText(`版本 ${currentVersion + 1}`, { exact: true }).waitFor();
+
+    await page.getByRole("button", { name: "历史版本" }).click();
+    await page.locator(".note-history-drawer .version-item").first().waitFor();
+    assert.ok(
+      (await page.locator(".note-history-drawer .version-item").count()) >= 2,
+    );
+    await page
+      .locator(".note-history-drawer")
+      .getByText(oldCause, { exact: true })
+      .waitFor();
+    await page
+      .locator(".note-history-drawer")
+      .getByText(newCause, { exact: true })
+      .waitFor();
+
+    const previous = page
+      .locator(".note-history-drawer .version-item")
+      .filter({ hasText: `版本 ${currentVersion}` })
+      .first();
+    await previous.getByRole("button", { name: "恢复此版本" }).click();
+    await page.waitForSelector(".ant-message-success");
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelector(".note-version-badge")?.textContent?.trim() ===
+        expected,
+      `版本 ${currentVersion + 2}`,
+    );
+    assert.equal(await page.locator("#cause-note").inputValue(), oldCause);
+    await context.close();
+  });
+
   await runCase("WA-05 越权详情被拒绝", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

@@ -4,17 +4,22 @@ import {
   App,
   Button,
   Card,
+  Drawer,
+  Empty,
   Input,
   Result,
   Skeleton,
+  Spin,
   Tag,
 } from "antd";
 import {
   ArrowLeft,
   BookOpenCheck,
+  Copy,
   Eraser,
   History,
   NotebookPen,
+  RotateCcw,
   Save,
   ShieldCheck,
 } from "lucide-react";
@@ -23,7 +28,21 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { MathContent } from "../components/MathContent";
-import type { Note, RecordDetail } from "../types";
+import type { Note, NoteVersion, RecordDetail } from "../types";
+
+const versionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function formatVersionTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : versionTimeFormatter.format(date);
+}
 
 function SafeAnswer({ record }: { record: RecordDetail }) {
   if (record.answer_format === "html") {
@@ -87,10 +106,19 @@ export function RecordDetailPage() {
   const { csrfToken } = useAuth();
   const { message } = App.useApp();
   const [record, setRecord] = useState<RecordDetail | null>(null);
-  const [note, setNote] = useState<Note>({ cause_note: "", review_note: "" });
+  const [note, setNote] = useState<Note>({
+    cause_note: "",
+    review_note: "",
+    version_number: 1,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"save" | "new" | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<NoteVersion[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -123,20 +151,68 @@ export function RecordDetailPage() {
     );
   }, [note, record]);
 
-  async function save() {
-    if (!record) return;
-    setSaving(true);
+  async function loadHistory() {
+    if (!id) return;
+    setHistoryLoading(true);
+    setHistoryError("");
     try {
-      const saved = await api.saveNotes(record.id, note, csrfToken);
+      setHistory(await api.noteVersions(id));
+    } catch (reason) {
+      setHistoryError(
+        reason instanceof Error ? reason.message : "历史版本加载失败",
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function openHistory() {
+    setHistoryOpen(true);
+    void loadHistory();
+  }
+
+  async function save(asNewVersion = false) {
+    if (!record) return;
+    setSavingAction(asNewVersion ? "new" : "save");
+    try {
+      const saved = await api.saveNotes(
+        record.id,
+        { cause_note: note.cause_note, review_note: note.review_note },
+        csrfToken,
+        asNewVersion,
+      );
       setNote(saved);
       setRecord({ ...record, note: saved });
-      message.success("笔记已保存");
+      message.success(asNewVersion ? "已另存为新版本" : "笔记已保存");
+      if (historyOpen) void loadHistory();
     } catch (reason) {
       message.error(
         `${reason instanceof Error ? reason.message : "保存失败，请重试"}；输入内容已保留`,
       );
     } finally {
-      setSaving(false);
+      setSavingAction(null);
+    }
+  }
+
+  async function restore(versionNumber: number) {
+    if (!record || !csrfToken) return;
+    setRestoringVersion(versionNumber);
+    try {
+      const restored = await api.restoreNoteVersion(
+        record.id,
+        versionNumber,
+        csrfToken,
+      );
+      setNote(restored);
+      setRecord({ ...record, note: restored });
+      message.success(
+        `已恢复版本 ${versionNumber}，当前内容为版本 ${restored.version_number}`,
+      );
+      await loadHistory();
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : "恢复失败，请重试");
+    } finally {
+      setRestoringVersion(null);
     }
   }
 
@@ -243,8 +319,14 @@ export function RecordDetailPage() {
           index={3}
           icon={<NotebookPen size={15} />}
           title="我的笔记"
-          description="错因和复习笔记独立保存，可清空后保存。历史反馈不会被修改。"
+          description="错因和复习笔记独立保存；覆盖当前版本或另存新版本，历史反馈不会被修改。"
         />
+        <div className="note-version-row">
+          <Tag className="note-version-badge">版本 {record.note.version_number}</Tag>
+          <Button icon={<History size={15} />} onClick={openHistory}>
+            历史版本
+          </Button>
+        </div>
         {csrfToken ? null : (
           <Alert
             type="warning"
@@ -301,17 +383,78 @@ export function RecordDetailPage() {
             <ShieldCheck size={14} />
             只保存到你的账号下
           </span>
-          <Button
-            type="primary"
-            icon={<Save size={15} />}
-            loading={saving}
-            disabled={!dirty || !csrfToken}
-            onClick={() => void save()}
-          >
-            保存笔记
-          </Button>
+          <div className="note-action-buttons">
+            <Button
+              icon={<Copy size={15} />}
+              loading={savingAction === "new"}
+              disabled={!csrfToken || savingAction !== null}
+              onClick={() => void save(true)}
+            >
+              另存为新版本
+            </Button>
+            <Button
+              type="primary"
+              icon={<Save size={15} />}
+              loading={savingAction === "save"}
+              disabled={!dirty || !csrfToken || savingAction !== null}
+              onClick={() => void save(false)}
+            >
+              保存笔记
+            </Button>
+          </div>
         </div>
       </Card>
+
+      <Drawer
+        className="note-history-drawer"
+        title="历史版本"
+        width={520}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      >
+        {historyLoading ? (
+          <div className="version-state">
+            <Spin />
+          </div>
+        ) : historyError ? (
+          <Alert type="error" showIcon message={historyError} />
+        ) : history.length ? (
+          <div className="version-list">
+            {history.map((version) => (
+              <article className="version-item" key={version.version_number}>
+                <div className="version-item-heading">
+                  <strong>版本 {version.version_number}</strong>
+                  <span>{formatVersionTime(version.created_at)}</span>
+                </div>
+                <div className="version-note-block">
+                  <span>错因</span>
+                  <p className={version.cause_note ? "" : "empty-value"}>
+                    {version.cause_note || "无内容"}
+                  </p>
+                </div>
+                <div className="version-note-block">
+                  <span>复习笔记</span>
+                  <p className={version.review_note ? "" : "empty-value"}>
+                    {version.review_note || "无内容"}
+                  </p>
+                </div>
+                <div className="version-item-actions">
+                  <Button
+                    icon={<RotateCcw size={14} />}
+                    loading={restoringVersion === version.version_number}
+                    disabled={!csrfToken || restoringVersion !== null}
+                    onClick={() => void restore(version.version_number)}
+                  >
+                    恢复此版本
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <Empty description="暂无历史版本" />
+        )}
+      </Drawer>
     </div>
   );
 }

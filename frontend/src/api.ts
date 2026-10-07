@@ -2,6 +2,7 @@ import type {
   AuthResponse,
   CatalogResponse,
   Note,
+  NoteVersion,
   RecordDetail,
   RecordFilters,
   RecordSummary,
@@ -82,12 +83,31 @@ export const api = {
   record(id: string) {
     return request<RecordDetail>(`/api/records/${encodeURIComponent(id)}`);
   },
-  saveNotes(id: string, note: Note, csrfToken: string) {
+  saveNotes(
+    id: string,
+    note: Pick<Note, "cause_note" | "review_note">,
+    csrfToken: string,
+    asNewVersion = false,
+  ) {
     return request<Note>(`/api/records/${encodeURIComponent(id)}/notes`, {
       method: "PUT",
       headers: { "X-CSRF-Token": csrfToken },
-      body: JSON.stringify(note),
+      body: JSON.stringify({ ...note, as_new_version: asNewVersion }),
     });
+  },
+  noteVersions(id: string) {
+    return request<NoteVersion[]>(
+      `/api/records/${encodeURIComponent(id)}/notes/versions`,
+    );
+  },
+  restoreNoteVersion(id: string, versionNumber: number, csrfToken: string) {
+    return request<Note>(
+      `/api/records/${encodeURIComponent(id)}/notes/versions/${versionNumber}/restore`,
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+      },
+    );
   },
 };
 

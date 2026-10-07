@@ -12,7 +12,17 @@ from sqlalchemy.orm import Session, selectinload
 
 from .config import Settings, get_settings
 from .database import Base, SessionLocal, engine
-from .models import Assignment, Course, KnowledgePoint, Note, Record, SeedMetadata, Student
+from .migrations import apply_runtime_migrations, ensure_initial_note_versions
+from .models import (
+    Assignment,
+    Course,
+    KnowledgePoint,
+    Note,
+    NoteVersion,
+    Record,
+    SeedMetadata,
+    Student,
+)
 
 logger = logging.getLogger(__name__)
 password_hasher = PasswordHasher()
@@ -124,7 +134,20 @@ def upsert_records(db: Session, records: list[dict]) -> None:
         record.knowledge_points = [existing_points[name] for name in item["knowledgePoints"]]
 
         if record.note is None:
-            record.note = Note(record_id=record.id, cause_note="", review_note="")
+            record.note = Note(
+                record_id=record.id,
+                cause_note="",
+                review_note="",
+                version_number=1,
+            )
+            db.add(
+                NoteVersion(
+                    record_id=record.id,
+                    version_number=1,
+                    cause_note="",
+                    review_note="",
+                )
+            )
 
 
 def seed_database(db: Session, settings: Settings | None = None) -> dict[str, int]:
@@ -164,7 +187,9 @@ def bootstrap_database(max_attempts: int = 30, delay_seconds: float = 1.0) -> No
     for attempt in range(1, max_attempts + 1):
         try:
             Base.metadata.create_all(bind=engine)
+            apply_runtime_migrations(engine)
             with SessionLocal() as db:
+                ensure_initial_note_versions(db)
                 counts = seed_database(db)
             logger.info("Database ready: %s", counts)
             return

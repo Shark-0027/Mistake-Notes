@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -47,6 +49,14 @@ class RecordSummary(BaseModel):
 class NoteOut(BaseModel):
     cause_note: str
     review_note: str
+    version_number: int
+
+
+class NoteVersionOut(BaseModel):
+    version_number: int
+    cause_note: str
+    review_note: str
+    created_at: datetime
 
 
 class RecordDetail(RecordSummary):
@@ -63,3 +73,4 @@ class NoteUpdate(BaseModel):
 
     cause_note: str = Field(default="", max_length=20_000)
     review_note: str = Field(default="", max_length=20_000)
+    as_new_version: bool = False

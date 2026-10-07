@@ -37,6 +37,11 @@ export interface RecordSummary {
 export interface Note {
   cause_note: string;
   review_note: string;
+  version_number: number;
+}
+
+export interface NoteVersion extends Note {
+  created_at: string;
 }
 
 export interface RecordDetail extends RecordSummary {

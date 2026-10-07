@@ -12,13 +12,16 @@ from .api_auth import router as auth_router
 from .api_records import router as records_router
 from .config import Settings, get_settings
 from .database import Base, SessionLocal, engine
+from .migrations import apply_runtime_migrations, ensure_initial_note_versions
 from .seed import seed_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    apply_runtime_migrations(engine)
     with SessionLocal() as db:
+        ensure_initial_note_versions(db)
         seed_database(db)
     yield
 

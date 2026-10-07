@@ -2,8 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String, Table, Text, func
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -11,6 +23,10 @@ from .database import Base
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def new_id(prefix: str) -> str:
+    return f"{prefix}_{uuid4().hex}"
 
 
 record_knowledge_points = Table(
@@ -114,6 +130,7 @@ class Note(Base):
     )
     cause_note: Mapped[str] = mapped_column(Text, default="")
     review_note: Mapped[str] = mapped_column(Text, default="")
+    version_number: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,
@@ -123,6 +140,26 @@ class Note(Base):
 
     record: Mapped[Record] = relationship(back_populates="note")
 
+
+class NoteVersion(Base):
+    __tablename__ = "note_versions"
+    __table_args__ = (
+        UniqueConstraint("record_id", "version_number", name="uq_note_versions_record_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("notev"))
+    record_id: Mapped[str] = mapped_column(
+        ForeignKey("records.id", ondelete="CASCADE"),
+        index=True,
+    )
+    version_number: Mapped[int] = mapped_column(Integer)
+    cause_note: Mapped[str] = mapped_column(Text, default="")
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        server_default=func.now(),
+    )
 
 class SeedMetadata(Base):
     __tablename__ = "seed_metadata"

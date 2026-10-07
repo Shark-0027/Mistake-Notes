@@ -526,6 +526,22 @@ textarea {
   margin-bottom: 15px;
 }
 
+.note-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.note-version-badge {
+  margin: 0 !important;
+  color: var(--brand) !important;
+  border-color: var(--brand-line) !important;
+  background: var(--brand-soft) !important;
+  font-weight: 700;
+}
+
 .note-label-row {
   margin-bottom: 6px;
 }
@@ -540,12 +556,77 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
+.note-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
 .save-hint {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.version-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.version-list {
+  display: grid;
+  gap: 13px;
+}
+
+.version-item {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.version-item-heading,
+.version-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-item-heading {
+  margin-bottom: 12px;
+}
+
+.version-item-heading strong {
+  color: var(--title);
+  font-size: 14px;
+}
+
+.version-item-heading span,
+.version-note-block span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.version-note-block + .version-note-block {
+  margin-top: 11px;
+}
+
+.version-note-block p {
+  margin: 4px 0 0;
+  color: var(--title);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.version-item-actions {
+  justify-content: flex-end;
+  margin-top: 13px;
 }
 
 .formula-fallback {

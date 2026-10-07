@@ -2,17 +2,26 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .database import get_db
-from .models import Course, KnowledgePoint, Record, Student, record_knowledge_points
+from .models import (
+    Course,
+    KnowledgePoint,
+    Note,
+    NoteVersion,
+    Record,
+    Student,
+    record_knowledge_points,
+)
 from .schemas import (
     CatalogResponse,
     CourseOut,
     NoteOut,
     NoteUpdate,
+    NoteVersionOut,
     RecordDetail,
     RecordSummary,
 )
@@ -23,8 +32,7 @@ router = APIRouter(prefix="/api", tags=["records"])
 
 def score_text(value: Decimal | float | int) -> str:
     decimal_value = Decimal(str(value)).normalize()
-    text = format(decimal_value, "f")
-    return text
+    return format(decimal_value, "f")
 
 
 def knowledge_names(record: Record) -> list[str]:
@@ -49,9 +57,16 @@ def record_summary(record: Record) -> RecordSummary:
     )
 
 
+def note_out(note: Note | None) -> NoteOut:
+    return NoteOut(
+        cause_note=note.cause_note if note else "",
+        review_note=note.review_note if note else "",
+        version_number=note.version_number if note else 1,
+    )
+
+
 def record_detail(record: Record) -> RecordDetail:
     summary = record_summary(record)
-    note = record.note
     return RecordDetail(
         **summary.model_dump(),
         question_format=record.question_format,
@@ -59,11 +74,37 @@ def record_detail(record: Record) -> RecordDetail:
         answer_format=record.answer_format,
         feedback=record.feedback,
         grading_source=record.grading_source,
-        note=NoteOut(
-            cause_note=note.cause_note if note else "",
-            review_note=note.review_note if note else "",
-        ),
+        note=note_out(record.note),
     )
+
+
+def current_note(record: Record, db: Session) -> Note:
+    if record.note is None:
+        record.note = Note(record_id=record.id, version_number=1)
+        db.add(record.note)
+        db.flush()
+    return record.note
+
+
+def save_version_snapshot(db: Session, note: Note) -> None:
+    version = db.scalar(
+        select(NoteVersion).where(
+            NoteVersion.record_id == note.record_id,
+            NoteVersion.version_number == note.version_number,
+        )
+    )
+    if version is None:
+        db.add(
+            NoteVersion(
+                record_id=note.record_id,
+                version_number=note.version_number,
+                cause_note=note.cause_note,
+                review_note=note.review_note,
+            )
+        )
+        return
+    version.cause_note = note.cause_note
+    version.review_note = note.review_note
 
 
 @router.get("/catalog", response_model=CatalogResponse)
@@ -144,6 +185,32 @@ def get_record(
     return record_detail(record)
 
 
+@router.get(
+    "/records/{record_id}/notes/versions",
+    response_model=list[NoteVersionOut],
+)
+def list_note_versions(
+    record_id: str,
+    student: Student = Depends(require_student),
+    db: Session = Depends(get_db),
+) -> list[NoteVersionOut]:
+    record = record_for_student(db, record_id, student)
+    versions = db.scalars(
+        select(NoteVersion)
+        .where(NoteVersion.record_id == record.id)
+        .order_by(NoteVersion.version_number.desc())
+    ).all()
+    return [
+        NoteVersionOut(
+            version_number=version.version_number,
+            cause_note=version.cause_note,
+            review_note=version.review_note,
+            created_at=version.created_at,
+        )
+        for version in versions
+    ]
+
+
 @router.put("/records/{record_id}/notes", response_model=NoteOut)
 def update_notes(
     record_id: str,
@@ -153,16 +220,41 @@ def update_notes(
     db: Session = Depends(get_db),
 ) -> NoteOut:
     record = record_for_student(db, record_id, student)
-    if record.note is None:
-        from .models import Note
-
-        record.note = Note(record_id=record.id)
-
-    record.note.cause_note = payload.cause_note
-    record.note.review_note = payload.review_note
+    note = current_note(record, db)
+    if payload.as_new_version:
+        note.version_number += 1
+    note.cause_note = payload.cause_note
+    note.review_note = payload.review_note
+    save_version_snapshot(db, note)
     db.commit()
-    return NoteOut(
-        cause_note=record.note.cause_note,
-        review_note=record.note.review_note,
-    )
+    return note_out(note)
 
+
+@router.post(
+    "/records/{record_id}/notes/versions/{version_number}/restore",
+    response_model=NoteOut,
+)
+def restore_note_version(
+    record_id: str,
+    version_number: int,
+    student: Student = Depends(require_student),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> NoteOut:
+    record = record_for_student(db, record_id, student)
+    version = db.scalar(
+        select(NoteVersion).where(
+            NoteVersion.record_id == record.id,
+            NoteVersion.version_number == version_number,
+        )
+    )
+    if version is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记版本不存在")
+
+    note = current_note(record, db)
+    note.version_number += 1
+    note.cause_note = version.cause_note
+    note.review_note = version.review_note
+    save_version_snapshot(db, note)
+    db.commit()
+    return note_out(note)
