@@ -1,36 +1,21 @@
 import DOMPurify from "dompurify";
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Drawer,
-  Empty,
-  Image,
-  Input,
-  Result,
-  Skeleton,
-  Spin,
-  Tag,
-} from "antd";
+import { App, Button, Card, Drawer, Empty, Result, Skeleton, Spin, Tag } from "antd";
 import {
   ArrowLeft,
   BookOpenCheck,
-  Copy,
-  Eraser,
+  ChevronDown,
+  ChevronUp,
   History,
-  ImagePlus,
   NotebookPen,
   RotateCcw,
-  Save,
-  ShieldCheck,
-  Trash2,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { MathContent } from "../components/MathContent";
+import { NoteEditor } from "../components/NoteEditor";
 import type { Note, NoteImage, NoteVersion, RecordDetail } from "../types";
 
 const versionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -41,6 +26,10 @@ const versionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   minute: "2-digit",
   hour12: false,
 });
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
+}
 
 function formatVersionTime(value: string) {
   const date = new Date(value);
@@ -127,7 +116,14 @@ export function RecordDetailPage() {
   const [imageUploading, setImageUploading] = useState(false);
   const [imageError, setImageError] = useState("");
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [floatingOpen, setFloatingOpen] = useState(false);
+  const [floatingCollapsed, setFloatingCollapsed] = useState(false);
+  const [floatingPosition, setFloatingPosition] = useState(() => ({
+    x: Math.max(16, window.innerWidth - 450),
+    y: 92,
+  }));
+  const floatingPanelRef = useRef<HTMLElement>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -208,7 +204,7 @@ export function RecordDetailPage() {
         asNewVersion,
       );
       setNote(saved);
-      setRecord({ ...record, note: saved });
+      setRecord((current) => (current ? { ...current, note: saved } : current));
       message.success(asNewVersion ? "已另存为新版本" : "笔记已保存");
       if (historyOpen) void loadHistory();
     } catch (reason) {
@@ -230,7 +226,9 @@ export function RecordDetailPage() {
         csrfToken,
       );
       setNote(restored);
-      setRecord({ ...record, note: restored });
+      setRecord((current) =>
+        current ? { ...current, note: restored } : current,
+      );
       message.success(
         `已恢复版本 ${versionNumber}，当前内容为版本 ${restored.version_number}`,
       );
@@ -266,27 +264,6 @@ export function RecordDetailPage() {
     }
   }
 
-  function handleImageSelection(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (file) void uploadImage(file);
-  }
-
-  function handleImagePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const item = Array.from(event.clipboardData.items).find(
-      (entry) => entry.kind === "file" && entry.type.startsWith("image/"),
-    );
-    const file =
-      item?.getAsFile() ??
-      Array.from(event.clipboardData.files).find((entry) =>
-        entry.type.startsWith("image/"),
-      );
-    if (file) {
-      event.preventDefault();
-      void uploadImage(file);
-    }
-  }
-
   async function deleteImage(image: NoteImage) {
     if (!csrfToken) return;
     setDeletingImageId(image.id);
@@ -298,6 +275,36 @@ export function RecordDetailPage() {
       message.error(reason instanceof Error ? reason.message : "图片删除失败");
     } finally {
       setDeletingImageId(null);
+    }
+  }
+
+  function startFloatingDrag(event: React.PointerEvent<HTMLElement>) {
+    const panel = floatingPanelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveFloatingDrag(event: React.PointerEvent<HTMLElement>) {
+    const panel = floatingPanelRef.current;
+    const offset = dragOffsetRef.current;
+    if (!panel || !offset) return;
+    const maximumX = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
+    const maximumY = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+    setFloatingPosition({
+      x: clamp(event.clientX - offset.x, 8, maximumX),
+      y: clamp(event.clientY - offset.y, 8, maximumY),
+    });
+  }
+
+  function endFloatingDrag(event: React.PointerEvent<HTMLElement>) {
+    dragOffsetRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
   }
 
@@ -330,230 +337,120 @@ export function RecordDetailPage() {
     );
   }
 
+  const editorProps = {
+    note,
+    setNote,
+    recordVersion: record.note.version_number,
+    csrfToken,
+    dirty,
+    savingAction,
+    images,
+    imagesLoading,
+    imageUploading,
+    imageError,
+    deletingImageId,
+    onSave: save,
+    onOpenHistory: openHistory,
+    onUploadImage: uploadImage,
+    onDeleteImage: deleteImage,
+  };
+
   return (
     <div className="page-stack detail-stack">
       <div className="detail-toolbar">
         <Link to={`/records${location.search}`}>
           <Button icon={<ArrowLeft size={15} />}>返回列表</Button>
         </Link>
-        <span className="detail-id">记录 {record.id}</span>
+        <div className="detail-toolbar-actions">
+          <span className="detail-id">记录 {record.id}</span>
+          <Button
+            type="primary"
+            icon={<NotebookPen size={15} />}
+            onClick={() => {
+              setFloatingOpen(true);
+              setFloatingCollapsed(false);
+            }}
+          >
+            小窗记笔记
+          </Button>
+        </div>
       </div>
 
-      <Card className="surface-card section-card" bordered>
-        <SectionHeading
-          index={1}
-          icon={<BookOpenCheck size={15} />}
-          title="题目与作答"
-          description={`${record.course_name} · ${record.assignment_title}`}
-        />
-        <div className="source-line">
-          <Tag color={record.grading_source === "AI" ? "blue" : "gold"}>
-            {record.grading_source === "AI" ? "AI 评分" : "教师评分"}
-          </Tag>
-          <Tag className="neutral-tag">{record.question_type}</Tag>
-          <Tag className="neutral-tag">{record.question_id}</Tag>
-        </div>
-        <div className="question-panel">
-          <MathContent source={record.question_text} />
-        </div>
-        <div className="answer-heading">原始作答</div>
-        <div className={`answer-panel answer-${record.answer_format}`}>
-          <SafeAnswer record={record} />
-        </div>
-      </Card>
-
-      <Card className="surface-card section-card" bordered>
-        <SectionHeading
-          index={2}
-          icon={<History size={15} />}
-          title="历史批改反馈"
-          description="以下内容为来源系统中的历史数据，仅在页面中展示，不会重算或补全。"
-        />
-        <div className="feedback-grid">
-          <div className="feedback-score">
-            <span>得分</span>
-            <strong>
-              {record.score_display} / {record.max_score_display}
-            </strong>
-          </div>
-          <div className="feedback-panel">
-            <span className="field-label">公开评语</span>
-            <p className={record.feedback ? "" : "empty-value"}>
-              {record.feedback || "暂无评语"}
-            </p>
-          </div>
-        </div>
-        <div className="knowledge-block">
-          <span className="field-label">知识点</span>
-          <div className="tag-row">
-            {record.knowledge_points.length ? (
-              record.knowledge_points.map((point) => (
-                <Tag key={point} className="neutral-tag">
-                  {point}
-                </Tag>
-              ))
-            ) : (
-              <Tag className="neutral-tag">未标注</Tag>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      <Card className="surface-card section-card" bordered>
-        <SectionHeading
-          index={3}
-          icon={<NotebookPen size={15} />}
-          title="我的笔记"
-          description="错因和复习笔记独立保存；覆盖当前版本或另存新版本，历史反馈不会被修改。"
-        />
-        <div className="note-version-row">
-          <Tag className="note-version-badge">版本 {record.note.version_number}</Tag>
-          <div className="note-tool-actions">
-            <input
-              ref={imageInputRef}
-              className="note-image-input"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              aria-label="选择笔记图片"
-              onChange={handleImageSelection}
+      <div className="detail-content-grid">
+        <div className="detail-main-column">
+          <Card className="surface-card section-card" bordered>
+            <SectionHeading
+              index={1}
+              icon={<BookOpenCheck size={15} />}
+              title="题目与作答"
+              description={`${record.course_name} · ${record.assignment_title}`}
             />
-            <Button
-              icon={<ImagePlus size={15} />}
-              loading={imageUploading}
-              disabled={!csrfToken || imageUploading}
-              onClick={() => imageInputRef.current?.click()}
-            >
-              插入图片
-            </Button>
-            <Button icon={<History size={15} />} onClick={openHistory}>
-              历史版本
-            </Button>
-          </div>
-        </div>
-        {csrfToken ? null : (
-          <Alert
-            type="warning"
-            showIcon
-            message="会话校验信息缺失，请重新登录后再保存"
-          />
-        )}
-        <div className="note-field">
-          <div className="note-label-row">
-            <label htmlFor="cause-note">错因</label>
-            <Button
-              type="text"
-              size="small"
-              icon={<Eraser size={14} />}
-              onClick={() => setNote({ ...note, cause_note: "" })}
-            >
-              清空
-            </Button>
-          </div>
-          <Input.TextArea
-            id="cause-note"
-            value={note.cause_note}
-            autoSize={{ minRows: 3, maxRows: 7 }}
-            placeholder="记录这道题出错的原因"
-            onPaste={handleImagePaste}
-            onChange={(event) =>
-              setNote({ ...note, cause_note: event.target.value })
-            }
-          />
-        </div>
-        <div className="note-field">
-          <div className="note-label-row">
-            <label htmlFor="review-note">复习笔记</label>
-            <Button
-              type="text"
-              size="small"
-              icon={<Eraser size={14} />}
-              onClick={() => setNote({ ...note, review_note: "" })}
-            >
-              清空
-            </Button>
-          </div>
-          <Input.TextArea
-            id="review-note"
-            value={note.review_note}
-            autoSize={{ minRows: 5, maxRows: 10 }}
-            placeholder="写下复习思路和需要巩固的知识点"
-            onPaste={handleImagePaste}
-            onChange={(event) =>
-              setNote({ ...note, review_note: event.target.value })
-            }
-          />
-        </div>
-        <div className="note-image-block">
-          <div className="note-image-heading">
-            <span className="field-label">笔记图片</span>
-            <span>单张不超过 5MB，支持 JPG、PNG、WebP</span>
-          </div>
-          {imageError ? <Alert type="error" showIcon message={imageError} /> : null}
-          {imagesLoading ? (
-            <div className="note-image-state">
-              <Spin size="small" />
+            <div className="source-line">
+              <Tag color={record.grading_source === "AI" ? "blue" : "gold"}>
+                {record.grading_source === "AI" ? "AI 评分" : "教师评分"}
+              </Tag>
+              <Tag className="neutral-tag">{record.question_type}</Tag>
+              <Tag className="neutral-tag">{record.question_id}</Tag>
             </div>
-          ) : images.length ? (
-            <div className="note-image-grid">
-              {images.map((image) => (
-                <div className="note-image-item" key={image.id}>
-                  <Image
-                    className="note-image-thumbnail"
-                    src={image.url}
-                    alt={image.filename}
-                    title={`${image.filename}${
-                      image.version_number
-                        ? ` · 版本 ${image.version_number}`
-                        : ""
-                    }`}
-                  />
-                  <div className="note-image-item-actions">
-                    <span title={image.filename}>{image.filename}</span>
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<Trash2 size={13} />}
-                      loading={deletingImageId === image.id}
-                      onClick={() => void deleteImage(image)}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="question-panel">
+              <MathContent source={record.question_text} />
             </div>
-          ) : (
-            <span className="empty-value">暂无图片</span>
-          )}
+            <div className="answer-heading">原始作答</div>
+            <div className={`answer-panel answer-${record.answer_format}`}>
+              <SafeAnswer record={record} />
+            </div>
+          </Card>
+
+          <Card className="surface-card section-card" bordered>
+            <SectionHeading
+              index={2}
+              icon={<History size={15} />}
+              title="历史批改反馈"
+              description="以下内容为来源系统中的历史数据，仅在页面中展示，不会重算或补全。"
+            />
+            <div className="feedback-grid">
+              <div className="feedback-score">
+                <span>得分</span>
+                <strong>
+                  {record.score_display} / {record.max_score_display}
+                </strong>
+              </div>
+              <div className="feedback-panel">
+                <span className="field-label">公开评语</span>
+                <p className={record.feedback ? "" : "empty-value"}>
+                  {record.feedback || "暂无评语"}
+                </p>
+              </div>
+            </div>
+            <div className="knowledge-block">
+              <span className="field-label">知识点</span>
+              <div className="tag-row">
+                {record.knowledge_points.length ? (
+                  record.knowledge_points.map((point) => (
+                    <Tag key={point} className="neutral-tag">
+                      {point}
+                    </Tag>
+                  ))
+                ) : (
+                  <Tag className="neutral-tag">未标注</Tag>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
-        <div className="note-actions">
-          <span className="save-hint">
-            <ShieldCheck size={14} />
-            只保存到你的账号下
-          </span>
-          <div className="note-action-buttons">
-            <Button
-              icon={<Copy size={15} />}
-              loading={savingAction === "new"}
-              disabled={!csrfToken || savingAction !== null}
-              onClick={() => void save(true)}
-            >
-              另存为新版本
-            </Button>
-            <Button
-              type="primary"
-              icon={<Save size={15} />}
-              loading={savingAction === "save"}
-              disabled={!dirty || !csrfToken || savingAction !== null}
-              onClick={() => void save(false)}
-            >
-              保存笔记
-            </Button>
-          </div>
+
+        <div className="detail-note-column">
+          <Card className="surface-card section-card note-section-card" bordered>
+            <SectionHeading
+              index={3}
+              icon={<NotebookPen size={15} />}
+              title="我的笔记"
+              description="错因和复习笔记独立保存；覆盖当前版本或另存新版本，历史反馈不会被修改。"
+            />
+            <NoteEditor {...editorProps} />
+          </Card>
         </div>
-      </Card>
+      </div>
 
       <Drawer
         className="note-history-drawer"
@@ -567,7 +464,9 @@ export function RecordDetailPage() {
             <Spin />
           </div>
         ) : historyError ? (
-          <Alert type="error" showIcon message={historyError} />
+          <div className="state-card">
+            <Result status="error" title="历史版本加载失败" subTitle={historyError} />
+          </div>
         ) : history.length ? (
           <div className="version-list">
             {history.map((version) => (
@@ -605,7 +504,61 @@ export function RecordDetailPage() {
           <Empty description="暂无历史版本" />
         )}
       </Drawer>
+
+      {floatingOpen ? (
+        <section
+          ref={floatingPanelRef}
+          className={`floating-note-panel${
+            floatingCollapsed ? " is-collapsed" : ""
+          }`}
+          style={{ left: floatingPosition.x, top: floatingPosition.y }}
+          aria-label="浮动笔记小窗"
+        >
+          <header
+            className="floating-note-header"
+            onPointerDown={startFloatingDrag}
+            onPointerMove={moveFloatingDrag}
+            onPointerUp={endFloatingDrag}
+            onPointerCancel={endFloatingDrag}
+          >
+            <div className="floating-note-title">
+              <NotebookPen size={15} />
+              <strong>小窗记笔记</strong>
+              <span>版本 {record.note.version_number}</span>
+            </div>
+            <div
+              className="floating-note-actions"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Button
+                type="text"
+                size="small"
+                aria-label={floatingCollapsed ? "展开小窗" : "收起小窗"}
+                icon={
+                  floatingCollapsed ? (
+                    <ChevronUp size={15} />
+                  ) : (
+                    <ChevronDown size={15} />
+                  )
+                }
+                onClick={() => setFloatingCollapsed((current) => !current)}
+              />
+              <Button
+                type="text"
+                size="small"
+                aria-label="关闭小窗"
+                icon={<X size={15} />}
+                onClick={() => setFloatingOpen(false)}
+              />
+            </div>
+          </header>
+          {floatingCollapsed ? null : (
+            <div className="floating-note-content">
+              <NoteEditor idPrefix="floating" {...editorProps} />
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }
-

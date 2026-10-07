@@ -382,6 +382,24 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-content-grid,
+.detail-main-column {
+  display: grid;
+  gap: 16px;
+}
+
+.detail-content-grid {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 
 .section-card .ant-card-body {
@@ -654,6 +672,86 @@ textarea {
   font-size: 12px;
 }
 
+.floating-note-panel {
+  position: fixed;
+  z-index: 900;
+  width: min(430px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.24), var(--shadow-contact);
+}
+
+.floating-note-panel.is-collapsed {
+  max-height: none;
+}
+
+.floating-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 9px 8px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.floating-note-panel.is-collapsed .floating-note-header {
+  border-bottom: 0;
+}
+
+.floating-note-title,
+.floating-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.floating-note-title {
+  min-width: 0;
+  color: var(--title);
+}
+
+.floating-note-title strong {
+  font-size: 14px;
+}
+
+.floating-note-title span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.floating-note-actions {
+  flex: 0 0 auto;
+}
+
+.floating-note-content {
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+@media (min-width: 1100px) {
+  .detail-content-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.8fr);
+  }
+
+  .detail-note-column {
+    position: sticky;
+    top: 82px;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+  }
+}
+
 .version-state {
   min-height: 180px;
   display: grid;
@@ -819,6 +917,12 @@ textarea {
 
   .page-heading {
     align-items: flex-start;
+  }
+
+  .detail-toolbar,
+  .detail-toolbar-actions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .record-card-bottom,

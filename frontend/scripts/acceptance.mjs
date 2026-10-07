@@ -236,6 +236,80 @@ try {
     await context.close();
   });
 
+  await runCase("详情双栏与浮动笔记小窗", async () => {
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+    });
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await openRecord(page, "wrong_001");
+
+    assert.ok(await page.locator(".detail-main-column .question-panel").isVisible());
+    assert.ok(await page.locator(".detail-note-column #cause-note").isVisible());
+
+    await page.getByRole("button", { name: "小窗记笔记" }).click();
+    const floatingPanel = page.locator(".floating-note-panel");
+    await floatingPanel.waitFor();
+    const beforeDrag = await floatingPanel.boundingBox();
+    const dragHeader = floatingPanel.locator(".floating-note-header");
+    const headerBox = await dragHeader.boundingBox();
+    assert.ok(beforeDrag && headerBox);
+
+    await page.mouse.move(headerBox.x + 100, headerBox.y + 22);
+    await page.mouse.down();
+    await page.mouse.move(headerBox.x - 80, headerBox.y + 122, { steps: 6 });
+    await page.mouse.up();
+    const afterDrag = await floatingPanel.boundingBox();
+    assert.ok(afterDrag && Math.abs(afterDrag.x - beforeDrag.x) > 80);
+    assert.ok(Math.abs(afterDrag.y - beforeDrag.y) > 40);
+
+    const floatingCause = `小窗同步-${Date.now()}`;
+    await floatingPanel.locator("#floating-cause-note").fill(floatingCause);
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/records/wrong_001/notes") &&
+          response.request().method() === "PUT",
+      ),
+      floatingPanel.getByRole("button", { name: "保存笔记" }).click(),
+    ]);
+    assert.equal(await page.locator("#cause-note").inputValue(), floatingCause);
+
+    await floatingPanel.getByRole("button", { name: "收起小窗" }).click();
+    await floatingPanel
+      .locator("#floating-cause-note")
+      .waitFor({ state: "detached" });
+    await floatingPanel.getByRole("button", { name: "展开小窗" }).click();
+    await floatingPanel.locator("#floating-cause-note").waitFor();
+    assert.equal(
+      await floatingPanel.locator("#floating-cause-note").inputValue(),
+      floatingCause,
+    );
+
+    await floatingPanel.getByRole("button", { name: "关闭小窗" }).click();
+    await floatingPanel.waitFor({ state: "detached" });
+    await page.getByRole("button", { name: "小窗记笔记" }).click();
+    await page.locator(".floating-note-panel #floating-cause-note").waitFor();
+    assert.equal(
+      await page.locator(".floating-note-panel #floating-cause-note").inputValue(),
+      floatingCause,
+    );
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.locator(".detail-note-column #cause-note").waitFor();
+    const narrowState = await page.locator(".detail-content-grid").evaluate((element) => ({
+      notePosition: getComputedStyle(
+        element.querySelector(".detail-note-column"),
+      ).position,
+      hasHorizontalOverflow:
+        document.documentElement.scrollWidth > window.innerWidth + 1,
+    }));
+    assert.equal(narrowState.notePosition, "static");
+    assert.equal(narrowState.hasHorizontalOverflow, false);
+    await context.close();
+  });
+
   await runCase("WA-05 越权详情被拒绝", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();
