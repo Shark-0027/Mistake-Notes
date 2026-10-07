@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.database import Base
+from app.models import NoteVersion
 from app.seed import database_counts, seed_database, sha256_file
 
 from .conftest import ROOT
@@ -13,6 +14,13 @@ from .conftest import ROOT
 def test_seed_is_idempotent_and_dataset_hash_matches(tmp_path: Path) -> None:
     database_path = tmp_path / "seed-test.db"
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(engine)
     settings = Settings(
         database_url=f"sqlite:///{database_path.as_posix()}",
@@ -32,6 +40,8 @@ def test_seed_is_idempotent_and_dataset_hash_matches(tmp_path: Path) -> None:
         "courses": 6,
         "assignments": 7,
     }
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(NoteVersion)) == 20
     assert (
         sha256_file(settings.dataset_path)
         == "2417e5ab9a9417875a4a3755fbedcd05c4d442085217affb80f36e355c6e106b"

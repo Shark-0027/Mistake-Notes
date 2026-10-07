@@ -140,6 +140,7 @@ def upsert_records(db: Session, records: list[dict]) -> None:
                 review_note="",
                 version_number=1,
             )
+            db.flush()
             db.add(
                 NoteVersion(
                     record_id=record.id,
