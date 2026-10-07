@@ -20,6 +20,19 @@ def apply_runtime_migrations(engine: Engine) -> None:
                         "ADD COLUMN version_number INTEGER NOT NULL DEFAULT 1"
                     )
                 )
+        if "label" not in note_columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE notes ADD COLUMN label VARCHAR(50)"))
+
+    if "note_versions" in inspector.get_table_names():
+        version_columns = {
+            column["name"] for column in inspector.get_columns("note_versions")
+        }
+        if "label" not in version_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE note_versions ADD COLUMN label VARCHAR(50)")
+                )
 
 
 def ensure_initial_note_versions(db: Session) -> None:
@@ -42,6 +55,7 @@ def ensure_initial_note_versions(db: Session) -> None:
                     version_number=note.version_number,
                     cause_note=note.cause_note,
                     review_note=note.review_note,
+                    label=note.label,
                     created_at=note.updated_at or utcnow(),
                 )
             )

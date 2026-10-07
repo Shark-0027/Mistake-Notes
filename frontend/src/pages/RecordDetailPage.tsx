@@ -1,5 +1,17 @@
 import DOMPurify from "dompurify";
-import { App, Button, Card, Drawer, Empty, Result, Skeleton, Spin, Tag } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Drawer,
+  Empty,
+  Input,
+  Modal,
+  Result,
+  Skeleton,
+  Spin,
+  Tag,
+} from "antd";
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -7,6 +19,7 @@ import {
   ChevronUp,
   History,
   NotebookPen,
+  Pencil,
   RotateCcw,
   X,
 } from "lucide-react";
@@ -106,6 +119,7 @@ export function RecordDetailPage() {
   const [note, setNote] = useState<Note>({
     cause_note: "",
     review_note: "",
+    label: null,
     version_number: 1,
   });
   const [loading, setLoading] = useState(true);
@@ -116,6 +130,11 @@ export function RecordDetailPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const [newVersionOpen, setNewVersionOpen] = useState(false);
+  const [newVersionLabel, setNewVersionLabel] = useState("");
+  const [renamingVersion, setRenamingVersion] = useState<number | null>(null);
+  const [renameLabel, setRenameLabel] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
   const [images, setImages] = useState<NoteImage[]>([]);
   const [imagesLoading, setImagesLoading] = useState(true);
   const [imageUploading, setImageUploading] = useState(false);
@@ -241,13 +260,23 @@ export function RecordDetailPage() {
     void loadHistory();
   }
 
-  async function save(asNewVersion = false) {
-    if (!record) return;
+  async function save(
+    asNewVersion = false,
+    label: string | null = null,
+  ): Promise<boolean> {
+    if (!record || !csrfToken) {
+      message.error("会话校验信息缺失，请重新登录后再保存");
+      return false;
+    }
     setSavingAction(asNewVersion ? "new" : "save");
     try {
       const saved = await api.saveNotes(
         record.id,
-        { cause_note: note.cause_note, review_note: note.review_note },
+        {
+          cause_note: note.cause_note,
+          review_note: note.review_note,
+          label: asNewVersion ? label?.trim() || null : note.label,
+        },
         csrfToken,
         asNewVersion,
       );
@@ -255,12 +284,65 @@ export function RecordDetailPage() {
       setRecord((current) => (current ? { ...current, note: saved } : current));
       message.success(asNewVersion ? "已另存为新版本" : "笔记已保存");
       if (historyOpen) void loadHistory();
+      return true;
     } catch (reason) {
       message.error(
         `${reason instanceof Error ? reason.message : "保存失败，请重试"}；输入内容已保留`,
       );
+      return false;
     } finally {
       setSavingAction(null);
+    }
+  }
+
+  function requestSave(asNewVersion = false) {
+    if (asNewVersion) {
+      setNewVersionLabel("");
+      setNewVersionOpen(true);
+      return;
+    }
+    void save(false);
+  }
+
+  function startVersionRename(version: NoteVersion) {
+    setRenamingVersion(version.version_number);
+    setRenameLabel(version.label ?? "");
+  }
+
+  async function saveVersionRename(versionNumber: number) {
+    if (!record || !csrfToken) {
+      message.error("会话校验信息缺失，请重新登录后再重命名");
+      return;
+    }
+    setRenameSaving(true);
+    try {
+      const updated = await api.renameNoteVersion(
+        record.id,
+        versionNumber,
+        renameLabel.trim() || null,
+        csrfToken,
+      );
+      setHistory((current) =>
+        current.map((version) =>
+          version.version_number === updated.version_number ? updated : version,
+        ),
+      );
+      if (record.note.version_number === updated.version_number) {
+        setNote((current) => ({ ...current, label: updated.label }));
+        setRecord((current) =>
+          current
+            ? { ...current, note: { ...current.note, label: updated.label } }
+            : current,
+        );
+      }
+      setRenamingVersion(null);
+      message.success("版本名称已保存");
+    } catch (reason) {
+      message.error(
+        reason instanceof Error ? reason.message : "版本重命名失败，请重试",
+      );
+    } finally {
+      setRenameSaving(false);
     }
   }
 
@@ -397,7 +479,7 @@ export function RecordDetailPage() {
     imageUploading,
     imageError,
     deletingImageId,
-    onSave: save,
+    onSave: requestSave,
     onOpenHistory: openHistory,
     onUploadImage: uploadImage,
     onDeleteImage: deleteImage,
@@ -521,9 +603,15 @@ export function RecordDetailPage() {
         ) : history.length ? (
           <div className="version-list">
             {history.map((version) => (
-              <article className="version-item" key={version.version_number}>
+              <article
+                className="version-item"
+                key={version.version_number}
+                data-version-number={version.version_number}
+              >
                 <div className="version-item-heading">
-                  <strong>版本 {version.version_number}</strong>
+                  <strong>
+                    {version.label || `版本 ${version.version_number}`}
+                  </strong>
                   <span>{formatVersionTime(version.created_at)}</span>
                 </div>
                 <div className="version-note-block">
@@ -538,15 +626,62 @@ export function RecordDetailPage() {
                     {version.review_note || "无内容"}
                   </p>
                 </div>
-                <div className="version-item-actions">
-                  <Button
-                    icon={<RotateCcw size={14} />}
-                    loading={restoringVersion === version.version_number}
-                    disabled={!csrfToken || restoringVersion !== null}
-                    onClick={() => void restore(version.version_number)}
-                  >
-                    恢复此版本
-                  </Button>
+                <div
+                  className={`version-item-actions${
+                    renamingVersion === version.version_number
+                      ? " version-item-actions-edit"
+                      : ""
+                  }`}
+                >
+                  {renamingVersion === version.version_number ? (
+                    <>
+                      <Input
+                        className="version-rename-input"
+                        aria-label={`重命名版本 ${version.version_number}`}
+                        maxLength={50}
+                        value={renameLabel}
+                        placeholder="版本名称（可选）"
+                        onChange={(event) => setRenameLabel(event.target.value)}
+                        onPressEnter={() =>
+                          void saveVersionRename(version.version_number)
+                        }
+                      />
+                      <Button
+                        type="primary"
+                        loading={renameSaving}
+                        disabled={!csrfToken || renameSaving}
+                        onClick={() =>
+                          void saveVersionRename(version.version_number)
+                        }
+                      >
+                        保存名称
+                      </Button>
+                      <Button
+                        disabled={renameSaving}
+                        onClick={() => setRenamingVersion(null)}
+                      >
+                        取消
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        icon={<Pencil size={14} />}
+                        disabled={!csrfToken || renameSaving}
+                        onClick={() => startVersionRename(version)}
+                      >
+                        重命名
+                      </Button>
+                      <Button
+                        icon={<RotateCcw size={14} />}
+                        loading={restoringVersion === version.version_number}
+                        disabled={!csrfToken || restoringVersion !== null}
+                        onClick={() => void restore(version.version_number)}
+                      >
+                        恢复此版本
+                      </Button>
+                    </>
+                  )}
                 </div>
               </article>
             ))}
@@ -555,6 +690,35 @@ export function RecordDetailPage() {
           <Empty description="暂无历史版本" />
         )}
       </Drawer>
+
+      <Modal
+        title="另存为新版本"
+        open={newVersionOpen}
+        okText="创建新版本"
+        cancelText="取消"
+        confirmLoading={savingAction === "new"}
+        onCancel={() => {
+          if (savingAction === null) setNewVersionOpen(false);
+        }}
+        onOk={async () => {
+          if (await save(true, newVersionLabel)) setNewVersionOpen(false);
+        }}
+      >
+        <label className="version-name-label" htmlFor="new-version-label">
+          版本名称（可选）
+        </label>
+        <Input
+          id="new-version-label"
+          maxLength={50}
+          showCount
+          value={newVersionLabel}
+          placeholder="例如：第一次复盘"
+          onChange={(event) => setNewVersionLabel(event.target.value)}
+          onPressEnter={() => {
+            if (savingAction === null) void save(true, newVersionLabel);
+          }}
+        />
+      </Modal>
 
       {floatingOpen ? (
         <section
@@ -575,7 +739,9 @@ export function RecordDetailPage() {
             <div className="floating-note-title">
               <NotebookPen size={15} />
               <strong>小窗记笔记</strong>
-              <span>版本 {record.note.version_number}</span>
+              <span>
+                {record.note.label || `版本 ${record.note.version_number}`}
+              </span>
             </div>
             <div
               className="floating-note-actions"

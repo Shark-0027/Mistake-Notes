@@ -25,7 +25,7 @@ interface NoteEditorProps {
   imageUploading: boolean;
   imageError: string;
   deletingImageId: string | null;
-  onSave: (asNewVersion?: boolean) => Promise<void>;
+  onSave: (asNewVersion?: boolean) => void;
   onOpenHistory: () => void;
   onUploadImage: (file: File) => Promise<void>;
   onDeleteImage: (image: NoteImage) => Promise<void>;
@@ -76,7 +76,12 @@ export function NoteEditor({
   return (
     <div className="note-editor">
       <div className="note-version-row">
-        <Tag className="note-version-badge">版本 {recordVersion}</Tag>
+        <Tag
+          className="note-version-badge"
+          data-version-number={recordVersion}
+        >
+          {note.label || `版本 ${recordVersion}`}
+        </Tag>
         <div className="note-tool-actions">
           <input
             ref={imageInputRef}
@@ -220,7 +225,7 @@ export function NoteEditor({
             icon={<Copy size={15} />}
             loading={savingAction === "new"}
             disabled={!csrfToken || savingAction !== null}
-            onClick={() => void onSave(true)}
+            onClick={() => onSave(true)}
           >
             另存为新版本
           </Button>
@@ -229,7 +234,7 @@ export function NoteEditor({
             icon={<Save size={15} />}
             loading={savingAction === "save"}
             disabled={!dirty || !csrfToken || savingAction !== null}
-            onClick={() => void onSave(false)}
+            onClick={() => onSave(false)}
           >
             保存笔记
           </Button>

@@ -843,6 +843,22 @@ textarea {
   margin-top: 13px;
 }
 
+.version-item-actions-edit {
+  flex-wrap: wrap;
+}
+
+.version-rename-input {
+  width: min(220px, 100%);
+}
+
+.version-name-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .formula-fallback {
   padding: 13px 14px;
   border: 1px solid var(--danger-line);

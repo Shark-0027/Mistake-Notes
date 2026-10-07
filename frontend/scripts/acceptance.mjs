@@ -95,15 +95,22 @@ try {
     await page.waitForSelector(".ant-message-success");
 
     const badge = page.locator(".note-version-badge");
-    const currentVersion = Number((await badge.innerText()).match(/\d+/)?.[0]);
+    const currentVersion = Number(await badge.getAttribute("data-version-number"));
     assert.ok(Number.isInteger(currentVersion));
 
     const newCause = `${oldCause}-新版本`;
+    const newVersionLabel = `阶段复盘-${Date.now()}`;
     await page.locator("#cause-note").fill(newCause);
     await page.locator("#review-note").fill("另存版本复习内容");
     await page.getByRole("button", { name: "另存为新版本" }).click();
+    await page.locator("#new-version-label").fill(newVersionLabel);
+    await page.getByRole("button", { name: "创建新版本" }).click();
     await page.waitForSelector(".ant-message-success");
-    await page.getByText(`版本 ${currentVersion + 1}`, { exact: true }).waitFor();
+    await page.getByText(newVersionLabel, { exact: true }).waitFor();
+    assert.equal(
+      await badge.getAttribute("data-version-number"),
+      String(currentVersion + 1),
+    );
 
     await page.getByRole("button", { name: "历史版本" }).click();
     await page.locator(".note-history-drawer .version-item").first().waitFor();
@@ -116,13 +123,23 @@ try {
       .waitFor();
     await page
       .locator(".note-history-drawer")
+      .getByText(newVersionLabel, { exact: true })
+      .waitFor();
+    await page
+      .locator(".note-history-drawer")
       .getByText(newCause, { exact: true })
       .waitFor();
 
-    const previous = page
-      .locator(".note-history-drawer .version-item")
-      .filter({ hasText: `版本 ${currentVersion}` })
-      .first();
+    const previous = page.locator(
+      `.note-history-drawer .version-item[data-version-number="${currentVersion}"]`,
+    );
+    const renamedLabel = `重命名-${Date.now()}`;
+    await previous.getByRole("button", { name: "重命名" }).click();
+    await previous.locator(".version-rename-input").fill(renamedLabel);
+    await previous.getByRole("button", { name: "保存名称" }).click();
+    await page.getByText("版本名称已保存", { exact: true }).waitFor();
+    await previous.getByText(renamedLabel, { exact: true }).waitFor();
+
     await previous.getByRole("button", { name: "恢复此版本" }).click();
     await page.waitForSelector(".ant-message-success");
     await page.waitForFunction(

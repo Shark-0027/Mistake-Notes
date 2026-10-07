@@ -49,6 +49,7 @@ class RecordSummary(BaseModel):
 class NoteOut(BaseModel):
     cause_note: str
     review_note: str
+    label: str | None
     version_number: int
 
 
@@ -56,6 +57,7 @@ class NoteVersionOut(BaseModel):
     version_number: int
     cause_note: str
     review_note: str
+    label: str | None
     created_at: datetime
 
 
@@ -83,4 +85,11 @@ class NoteUpdate(BaseModel):
 
     cause_note: str = Field(default="", max_length=20_000)
     review_note: str = Field(default="", max_length=20_000)
+    label: str | None = Field(default=None, max_length=50)
     as_new_version: bool = False
+
+
+class NoteLabelUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str | None = Field(default=None, max_length=50)

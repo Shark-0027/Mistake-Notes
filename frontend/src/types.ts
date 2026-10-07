@@ -37,6 +37,7 @@ export interface RecordSummary {
 export interface Note {
   cause_note: string;
   review_note: string;
+  label: string | null;
   version_number: number;
 }
 

@@ -19,6 +19,7 @@ from .models import (
 from .schemas import (
     CatalogResponse,
     CourseOut,
+    NoteLabelUpdate,
     NoteOut,
     NoteUpdate,
     NoteVersionOut,
@@ -61,7 +62,18 @@ def note_out(note: Note | None) -> NoteOut:
     return NoteOut(
         cause_note=note.cause_note if note else "",
         review_note=note.review_note if note else "",
+        label=note.label if note else None,
         version_number=note.version_number if note else 1,
+    )
+
+
+def note_version_out(version: NoteVersion) -> NoteVersionOut:
+    return NoteVersionOut(
+        version_number=version.version_number,
+        cause_note=version.cause_note,
+        review_note=version.review_note,
+        label=version.label,
+        created_at=version.created_at,
     )
 
 
@@ -100,11 +112,13 @@ def save_version_snapshot(db: Session, note: Note) -> None:
                 version_number=note.version_number,
                 cause_note=note.cause_note,
                 review_note=note.review_note,
+                label=note.label,
             )
         )
         return
     version.cause_note = note.cause_note
     version.review_note = note.review_note
+    version.label = note.label
 
 
 @router.get("/catalog", response_model=CatalogResponse)
@@ -200,15 +214,35 @@ def list_note_versions(
         .where(NoteVersion.record_id == record.id)
         .order_by(NoteVersion.version_number.desc())
     ).all()
-    return [
-        NoteVersionOut(
-            version_number=version.version_number,
-            cause_note=version.cause_note,
-            review_note=version.review_note,
-            created_at=version.created_at,
+    return [note_version_out(version) for version in versions]
+
+
+@router.patch(
+    "/records/{record_id}/notes/versions/{version_number}",
+    response_model=NoteVersionOut,
+)
+def rename_note_version(
+    record_id: str,
+    version_number: int,
+    payload: NoteLabelUpdate,
+    student: Student = Depends(require_student),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> NoteVersionOut:
+    record = record_for_student(db, record_id, student)
+    version = db.scalar(
+        select(NoteVersion).where(
+            NoteVersion.record_id == record.id,
+            NoteVersion.version_number == version_number,
         )
-        for version in versions
-    ]
+    )
+    if version is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记版本不存在")
+
+    version.label = payload.label
+    db.commit()
+    db.refresh(version)
+    return note_version_out(version)
 
 
 @router.put("/records/{record_id}/notes", response_model=NoteOut)
@@ -225,6 +259,7 @@ def update_notes(
         note.version_number += 1
     note.cause_note = payload.cause_note
     note.review_note = payload.review_note
+    note.label = payload.label
     save_version_snapshot(db, note)
     db.commit()
     return note_out(note)
@@ -255,6 +290,7 @@ def restore_note_version(
     note.version_number += 1
     note.cause_note = version.cause_note
     note.review_note = version.review_note
+    note.label = None
     save_version_snapshot(db, note)
     db.commit()
     return note_out(note)

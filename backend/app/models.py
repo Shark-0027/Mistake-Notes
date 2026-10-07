@@ -130,6 +130,7 @@ class Note(Base):
     )
     cause_note: Mapped[str] = mapped_column(Text, default="")
     review_note: Mapped[str] = mapped_column(Text, default="")
+    label: Mapped[str | None] = mapped_column(String(50), nullable=True)
     version_number: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -155,6 +156,7 @@ class NoteVersion(Base):
     version_number: Mapped[int] = mapped_column(Integer)
     cause_note: Mapped[str] = mapped_column(Text, default="")
     review_note: Mapped[str] = mapped_column(Text, default="")
+    label: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,

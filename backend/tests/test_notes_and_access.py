@@ -27,6 +27,7 @@ def test_notes_persist_across_login_and_clear_exactly(client: TestClient) -> Non
     assert saved.json() == {
         "cause_note": "复习行列式",
         "review_note": "记住错项符号",
+        "label": None,
         "version_number": 1,
     }
 
@@ -46,11 +47,13 @@ def test_notes_persist_across_login_and_clear_exactly(client: TestClient) -> Non
     assert cleared.json() == {
         "cause_note": "",
         "review_note": "",
+        "label": None,
         "version_number": 1,
     }
     assert client.get("/api/records/wrong_001").json()["note"] == {
         "cause_note": "",
         "review_note": "",
+        "label": None,
         "version_number": 1,
     }
 
@@ -103,6 +106,7 @@ def test_note_versions_create_history_and_restore(client: TestClient) -> None:
     assert restored.json() == {
         "cause_note": "第一版错因",
         "review_note": "第一版笔记",
+        "label": None,
         "version_number": 3,
     }
 
@@ -134,6 +138,7 @@ def test_note_versions_allow_empty_snapshot_and_are_owner_only(
     assert saved.json() == {
         "cause_note": "",
         "review_note": "",
+        "label": None,
         "version_number": initial_version + 1,
     }
     versions = client.get("/api/records/wrong_001/notes/versions").json()
@@ -150,6 +155,76 @@ def test_note_versions_allow_empty_snapshot_and_are_owner_only(
         ).status_code
         == 403
     )
+
+
+def test_note_version_labels_can_be_set_renamed_and_cleared(
+    client: TestClient,
+) -> None:
+    auth = login(client)
+    initial_version = client.get("/api/records/wrong_001").json()["note"][
+        "version_number"
+    ]
+    first = client.put(
+        "/api/records/wrong_001/notes",
+        json={
+            "cause_note": "第一版",
+            "review_note": "第一版笔记",
+            "label": "初次整理",
+        },
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert first.status_code == 200
+    assert first.json()["label"] == "初次整理"
+
+    second = client.put(
+        "/api/records/wrong_001/notes",
+        json={
+            "cause_note": "第二版",
+            "review_note": "第二版笔记",
+            "label": "阶段复盘",
+            "as_new_version": True,
+        },
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert second.status_code == 200
+    assert second.json()["version_number"] == initial_version + 1
+    assert second.json()["label"] == "阶段复盘"
+
+    renamed = client.patch(
+        f"/api/records/wrong_001/notes/versions/{initial_version}",
+        json={"label": "重命名后的初稿"},
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["label"] == "重命名后的初稿"
+
+    cleared = client.patch(
+        f"/api/records/wrong_001/notes/versions/{initial_version}",
+        json={"label": None},
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["label"] is None
+
+    too_long = client.patch(
+        f"/api/records/wrong_001/notes/versions/{initial_version}",
+        json={"label": "x" * 51},
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert too_long.status_code == 422
+
+    history = client.get("/api/records/wrong_001/notes/versions").json()
+    assert [item["label"] for item in history[:2]] == ["阶段复盘", None]
+
+
+def test_note_version_rename_rejects_other_students(client: TestClient) -> None:
+    auth = login(client, "student_002")
+    response = client.patch(
+        "/api/records/wrong_001/notes/versions/1",
+        json={"label": "越权名称"},
+        headers={"X-CSRF-Token": auth["csrf_token"]},
+    )
+    assert response.status_code == 403
 
 
 def test_note_payload_cannot_override_student(client: TestClient) -> None:

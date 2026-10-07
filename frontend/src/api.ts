@@ -88,7 +88,9 @@ export const api = {
   },
   saveNotes(
     id: string,
-    note: Pick<Note, "cause_note" | "review_note">,
+    note: Pick<Note, "cause_note" | "review_note"> & {
+      label?: string | null;
+    },
     csrfToken: string,
     asNewVersion = false,
   ) {
@@ -97,6 +99,21 @@ export const api = {
       headers: { "X-CSRF-Token": csrfToken },
       body: JSON.stringify({ ...note, as_new_version: asNewVersion }),
     });
+  },
+  renameNoteVersion(
+    id: string,
+    versionNumber: number,
+    label: string | null,
+    csrfToken: string,
+  ) {
+    return request<NoteVersion>(
+      `/api/records/${encodeURIComponent(id)}/notes/versions/${versionNumber}`,
+      {
+        method: "PATCH",
+        headers: { "X-CSRF-Token": csrfToken },
+        body: JSON.stringify({ label }),
+      },
+    );
   },
   noteVersions(id: string) {
     return request<NoteVersion[]>(
