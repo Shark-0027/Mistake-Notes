@@ -107,6 +107,29 @@ try {
     await context.close();
   });
 
+  await runCase("WA-08b 坏公式仅降级单片段", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await page.route("**/api/records/wrong_001", async (route) => {
+      const response = await route.fetch();
+      const payload = await response.json();
+      payload.question_text = `${payload.question_text}\n$$\\frac{$$$`;
+      await route.fulfill({ response, json: payload });
+    });
+    await openRecord(page, "wrong_001");
+    await page.waitForSelector(".question-panel .katex-error");
+    assert.ok((await page.locator(".question-panel .katex").count()) > 0);
+    assert.ok((await page.locator(".question-panel .katex-error").count()) > 0);
+    const badFormula = await page
+      .locator(".question-panel .katex-error")
+      .last()
+      .textContent();
+    assert.ok(badFormula?.includes("\\frac{"));
+    assert.equal(await page.locator(".question-panel .formula-fallback").count(), 0);
+    await context.close();
+  });
+
   await runCase("WA-09 恶意 HTML 探针被 DOMPurify 清除", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

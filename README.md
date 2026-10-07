@@ -134,7 +134,7 @@ Windows PowerShell：
 ## Markdown、公式与 HTML 清洗
 
 - `questionText` 先规范 `$$` 边界，再交给 `remark-math` 与 `rehype-katex` 渲染。
-- 渲染前用 KaTeX `throwOnError: true` 做语法预检；如果公式异常，错误容器内显示完整原文，不白屏、不改写题意。
+- KaTeX 使用 `throwOnError: false` 按公式片段渲染；单个公式失败时仅该片段显示原始源码，其余 Markdown 和正常公式继续渲染；如果 React 渲染器自身失败，才退化为整段只读原文。
 - `answerFormat=html` 经 DOMPurify 白名单清洗，只保留段落、列表、换行、粗斜体、上下标等结构；脚本、事件属性、iframe、object、embed 被移除。
 - `answerFormat=text_latex` 按文本与行内公式渲染。
 - KaTeX 的 CSS、字体和多阶段构建全部进入本地产物，不依赖 CDN。
