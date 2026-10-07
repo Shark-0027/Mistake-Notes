@@ -38,6 +38,16 @@ const browser = await chromium.launch({
 });
 
 try {
+  await runCase("列表卡片渲染公式而非源码", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await page.locator(".record-card .katex").first().waitFor();
+    assert.ok((await page.locator(".record-card .katex").count()) > 0);
+    const summaries = await page.locator(".record-card .record-excerpt").allInnerTexts();
+    assert.ok(summaries.every((text) => !text.includes("$$") && !text.includes("\\begin")));
+    await context.close();
+  });
   await runCase("WA-03 笔记保存并跨刷新保留", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

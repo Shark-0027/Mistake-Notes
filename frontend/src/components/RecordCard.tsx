@@ -2,27 +2,7 @@ import { Card, Tag } from "antd";
 import { ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import type { RecordSummary } from "../types";
-
-function excerpt(source: string): string {
-  const limit = 100;
-  if (source.length <= limit) return source;
-
-  let index = 0;
-  while (index < source.length && index < limit) {
-    if (source.startsWith("$$", index)) {
-      const end = source.indexOf("$$", index + 2);
-      index = end === -1 ? source.length : end + 2;
-      continue;
-    }
-    if (source[index] === "$") {
-      const end = source.indexOf("$", index + 1);
-      index = end === -1 ? source.length : end + 1;
-      continue;
-    }
-    index += 1;
-  }
-  return `${source.slice(0, index).replace(/\s+/g, " ").trim()}…`;
-}
+import { MathContent } from "./MathContent";
 
 export function RecordCard({ record }: { record: RecordSummary }) {
   const location = useLocation();
@@ -38,7 +18,10 @@ export function RecordCard({ record }: { record: RecordSummary }) {
             {record.score_display} / {record.max_score_display}
           </span>
         </div>
-        <p className="record-excerpt">{excerpt(record.question_text)}</p>
+        <MathContent
+          source={record.question_text}
+          className="record-excerpt"
+        />
         <div className="record-card-bottom">
           <div className="tag-row">
             {record.knowledge_points.length ? (
@@ -59,4 +42,3 @@ export function RecordCard({ record }: { record: RecordSummary }) {
     </Link>
   );
 }
-

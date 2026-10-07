@@ -306,10 +306,28 @@ textarea {
 }
 
 .record-excerpt {
+  max-height: calc(1.65em * 3);
   margin: 10px 0 13px;
+  overflow: hidden;
   color: var(--title);
   font-size: 14px;
   line-height: 1.65;
+}
+
+.record-excerpt p {
+  margin: 0 0 4px;
+}
+
+.record-excerpt .katex-display {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 !important;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.record-excerpt .katex {
+  font-size: 1em;
 }
 
 .record-card-bottom {

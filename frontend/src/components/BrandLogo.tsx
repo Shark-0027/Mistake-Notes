@@ -8,7 +8,7 @@ export function BrandLogo({ compact = false }: { compact?: boolean }) {
           <path className="brand-underline" d="M11 23.5c2.2-1.4 4.4-1.4 6.6 0 1 .6 2.1.8 3.4.5" />
         </svg>
       </span>
-      {!compact && <span className="brand-name">错题笔记</span>}
+      {!compact && <span className="brand-name">Mistake Notes</span>}
     </div>
   );
 }
