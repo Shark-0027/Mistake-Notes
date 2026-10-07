@@ -188,6 +188,51 @@ try {
     await context.close();
   });
 
+  await runCase("核心流程重登确认", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await page.goto(
+      `${baseUrl}/records?course=course_001&keyword=${encodeURIComponent("写出四阶")}`,
+      { waitUntil: "networkidle" },
+    );
+    await page.getByText("共 1 条").waitFor();
+    await page.locator(".record-link").first().click();
+    await page.waitForURL("**/records/wrong_001?**");
+    await page.locator("#cause-note").fill("核心流程重登保留");
+    await page.locator("#review-note").fill("二次登录后仍存在");
+    await page.getByRole("button", { name: "保存笔记" }).click();
+    await page.waitForSelector(".ant-message-success");
+
+    await page.getByRole("button", { name: "退出" }).click();
+    await page.waitForURL("**/login");
+    await page.locator('input[autocomplete="username"]').fill("student_001");
+    await page.locator('input[autocomplete="current-password"]').fill(password);
+    await Promise.all([
+      page.waitForURL("**/records/wrong_001?**"),
+      page.getByRole("button", { name: "登录" }).click(),
+    ]);
+    await openRecord(page, "wrong_001");
+    assert.equal(await page.locator("#cause-note").inputValue(), "核心流程重登保留");
+    assert.equal(await page.locator("#review-note").inputValue(), "二次登录后仍存在");
+
+    await page.locator('button:has-text("清空")').nth(0).click();
+    await page.locator('button:has-text("清空")').nth(1).click();
+    await page.getByRole("button", { name: "保存笔记" }).click();
+    await page.waitForSelector(".ant-message-success");
+    await page.getByRole("button", { name: "退出" }).click();
+    await page.waitForURL("**/login");
+    await page.locator('input[autocomplete="username"]').fill("student_001");
+    await page.locator('input[autocomplete="current-password"]').fill(password);
+    await Promise.all([
+      page.waitForURL("**/records/wrong_001"),
+      page.getByRole("button", { name: "登录" }).click(),
+    ]);
+    await openRecord(page, "wrong_001");
+    assert.equal(await page.locator("#cause-note").inputValue(), "");
+    assert.equal(await page.locator("#review-note").inputValue(), "");
+    await context.close();
+  });
   await runCase("P3 分数按原始整数显示", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();
