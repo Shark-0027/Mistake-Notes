@@ -1,11 +1,12 @@
 # Mistake Notes
 
-学生错题复习 Web 应用。学生登录后只能查看自己的历史错题，按课程、知识点和题目关键词组合筛选，阅读题干、原始作答和历史批改反馈，并独立维护“错因”和“复习笔记”两个可编辑字段。
+学生错题复习 Web 应用。学生登录后只能查看自己的历史错题，按课程、知识点和题目关键词组合筛选，阅读题干、原始作答和历史批改反馈，独立维护带版本历史的“错因”和“复习笔记”，并可上传笔记图片。宽屏详情页支持题目与笔记双栏同屏，以及可拖动、可折叠的应用内浮动笔记小窗。
 
 ## 技术栈
 
 - 后端：Python 3.12、FastAPI、SQLAlchemy 2.x、Uvicorn
 - 数据库：PostgreSQL 16，Compose named volume 持久化
+- 笔记图片：原文件写入 `NOTE_IMAGE_DIR`，元数据写入 PostgreSQL；Compose 使用独立命名卷持久化
 - 前端：React 18、Vite、TypeScript、Ant Design
 - 渲染：react-markdown、remark-math、rehype-katex、KaTeX、DOMPurify
 - 认证：Starlette signed cookie session、Argon2 密码哈希、服务端归属校验、CSRF header
@@ -55,7 +56,7 @@ docker compose ps
 # 查看日志
 docker compose logs -f app
 
-# 停止但保留 PostgreSQL named volume
+# 停止但保留 PostgreSQL 与笔记图片 named volume
 docker compose down
 
 # 一键清空数据并重新初始化
@@ -66,7 +67,12 @@ docker compose up --build
 docker compose exec -T app python -m app.seed
 ```
 
-数据卷名为 `mistake_notes_postgres_data`，挂载到 PostgreSQL 的 `/var/lib/postgresql/data`。执行 `docker compose down` 不会删除该卷；执行 `docker compose down -v` 才会清空数据。
+持久化卷：
+
+- `mistake_notes_postgres_data` 挂载到 PostgreSQL 的 `/var/lib/postgresql/data`，保存题库、笔记当前值、笔记版本和图片元数据。
+- `mistake_notes_note_images` 挂载到应用的 `/app/note_images`，对应环境变量 `NOTE_IMAGE_DIR`，保存用户上传的图片原文件。
+
+执行 `docker compose down` 不会删除两个卷；执行 `docker compose down -v` 才会同时清空数据库与图片文件。
 
 ## 数据完整性
 
@@ -118,6 +124,9 @@ Windows PowerShell：
 | `initialNote` | `records.initial_note` | 种子字段保留；个人笔记单独存储 |
 | 错因 | `notes.cause_note` | 详情“我的笔记 → 错因” |
 | 复习笔记 | `notes.review_note` | 详情“我的笔记 → 复习笔记” |
+| 当前笔记版本号 | `notes.version_number` | 详情“我的笔记 → 版本 N” |
+| 历史版本 | `note_versions` | “历史版本”抽屉；显示版本号、时间和只读内容 |
+| 笔记图片 | `note_images` + `NOTE_IMAGE_DIR` | 缩略图、放大预览和删除；文件在命名卷中 |
 
 历史字段和用户笔记分区展示。保存笔记不会改写 `originalAnswer`、`feedback` 或历史分数。
 
@@ -141,6 +150,14 @@ Windows PowerShell：
 - `answerFormat=text_latex` 按文本与行内公式渲染。
 - KaTeX 的 CSS、字体和多阶段构建全部进入本地产物，不依赖 CDN。
 
+## 笔记版本、图片与同屏记录
+
+- 笔记当前值保存在 `notes`，版本快照保存在 `note_versions`。首次升级时已有笔记视为版本 1；空字符串仍表示一次有效保存，可生成或恢复空内容版本。
+- `GET /api/records/{id}/notes/versions` 返回按版本号倒序排列的历史内容；`PUT /api/records/{id}/notes` 的 `as_new_version=true` 会先递增版本号再保存；`POST /api/records/{id}/notes/versions/{version_number}/restore` 会把指定历史内容复制成新的当前版本，不改写原历史记录。
+- `POST /api/records/{id}/note-images` 接收 multipart 图片，要求登录、CSRF 和记录归属校验；只接受内容检测通过的 JPG、PNG、WebP，单张最多 5MB，超过限制或类型不符时返回明确中文错误。
+- `GET /api/note-images/{image_id}` 和 `DELETE /api/note-images/{image_id}` 同样校验当前学生是否拥有对应记录；图片不提供公开静态地址。Compose 的 `mistake_notes_note_images` 卷保证容器重建后原文件仍在。
+- 详情页在宽度不低于 1100px 时采用左侧题目与反馈、右侧粘性笔记面板的双栏布局；窄屏回落到单列。工具栏可打开应用内浮动笔记小窗，小窗可拖动、收起、关闭，复用同一份笔记状态并支持版本历史和图片操作。
+
 ## 架构与关键取舍
 
 ```text
@@ -161,9 +178,9 @@ FastAPI
 
 自研部分：
 
-- 错题领域模型、seed 幂等逻辑、服务端归属过滤、笔记双字段持久化
+- 错题领域模型、seed 幂等逻辑、服务端归属过滤、笔记版本历史、受鉴权图片存取
 - signed session + CSRF + Argon2 认证链路
-- React 登录、筛选列表、详情、笔记交互和双主题样式
+- React 登录、筛选列表、详情、双栏与浮动笔记交互、图片上传和双主题样式
 - Docker Compose 编排、验收脚本、文档与测试
 
 使用的开源库：
@@ -371,7 +388,7 @@ FeedbackUnchanged : True
 - 列表当前一次返回本人记录；数据集只有 20 条，不做分页。
 - `SESSION_SECRET` 的 Compose 默认值只用于本地验收；部署到公网必须通过 `.env` 或编排平台注入强随机值。
 - `answerFormat=html` 采用白名单清洗，不保留原 HTML 的任意 CSS、链接或媒体标签。
-- Ant Design 的供应商代码单独拆分后，UI chunk 仍约 645 kB（未 gzip）；后续可再按需拆分组件以缩小首屏资源。
+- Ant Design 的供应商代码单独拆分后，UI chunk 仍约 687 kB（未 gzip）；后续可再按需拆分组件以缩小首屏资源。
 
 ## 仓库与克隆部署
 
