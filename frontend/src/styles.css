@@ -747,8 +747,41 @@ textarea {
   .detail-note-column {
     position: sticky;
     top: 82px;
-    max-height: calc(100vh - 96px);
+    height: calc(100vh - 96px);
+    display: flex;
+    overflow: hidden;
+  }
+
+  .detail-note-column .note-section-card,
+  .detail-note-column .note-section-card > .ant-card-body,
+  .detail-note-column .note-editor {
+    min-height: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .detail-note-column .note-section-card {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .detail-note-column .note-section-card > .ant-card-body {
+    overflow: hidden;
+  }
+
+  .detail-note-column .note-editor {
     overflow-y: auto;
+  }
+
+  .detail-note-column .note-image-block {
+    flex: 1;
+    min-height: 112px;
+    overflow-y: auto;
+  }
+
+  .detail-note-column .note-actions {
+    margin-top: auto;
   }
 }
 

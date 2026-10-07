@@ -310,6 +310,33 @@ try {
     await context.close();
   });
 
+  await runCase("浮窗缩窗后仍完整落在视口内", async () => {
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1000 },
+    });
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await openRecord(page, "wrong_001");
+
+    await page.setViewportSize({ width: 900, height: 700 });
+    await page.getByRole("button", { name: "小窗记笔记" }).click();
+    const floatingPanel = page.locator(".floating-note-panel");
+    await floatingPanel.waitFor();
+    const panelBox = await floatingPanel.boundingBox();
+    assert.ok(panelBox, "浮窗应具有可见边界");
+    assert.ok(panelBox.x >= 0, `左侧越界：${panelBox.x}`);
+    assert.ok(panelBox.y >= 0, `顶部越界：${panelBox.y}`);
+    assert.ok(
+      panelBox.x + panelBox.width <= 900,
+      `右侧越界：${panelBox.x + panelBox.width}`,
+    );
+    assert.ok(
+      panelBox.y + panelBox.height <= 700,
+      `底部越界：${panelBox.y + panelBox.height}`,
+    );
+    await context.close();
+  });
+
   await runCase("WA-05 越权详情被拒绝", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

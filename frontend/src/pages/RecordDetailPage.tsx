@@ -31,6 +31,11 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
+const FLOATING_PANEL_WIDTH = 430;
+const FLOATING_PANEL_HEIGHT = 560;
+const FLOATING_PANEL_COLLAPSED_HEIGHT = 46;
+const FLOATING_PANEL_INSET = 8;
+
 function formatVersionTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : versionTimeFormatter.format(date);
@@ -124,6 +129,49 @@ export function RecordDetailPage() {
   }));
   const floatingPanelRef = useRef<HTMLElement>(null);
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+
+  function clampFloatingPosition(
+    position: { x: number; y: number },
+    panel: HTMLElement | null = floatingPanelRef.current,
+    collapsed = floatingCollapsed,
+  ) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const panelWidth =
+      panel?.offsetWidth ??
+      Math.min(FLOATING_PANEL_WIDTH, Math.max(0, viewportWidth - 16));
+    const measuredHeight =
+      panel?.offsetHeight ??
+      (collapsed ? FLOATING_PANEL_COLLAPSED_HEIGHT : FLOATING_PANEL_HEIGHT);
+    const maximumX = Math.max(
+      FLOATING_PANEL_INSET,
+      viewportWidth - panelWidth - FLOATING_PANEL_INSET,
+    );
+    const maximumY = Math.max(
+      FLOATING_PANEL_INSET,
+      viewportHeight - measuredHeight - FLOATING_PANEL_INSET,
+    );
+    return {
+      x: clamp(position.x, FLOATING_PANEL_INSET, maximumX),
+      y: clamp(position.y, FLOATING_PANEL_INSET, maximumY),
+    };
+  }
+
+  useEffect(() => {
+    if (!floatingOpen) return;
+    const handleResize = () => {
+      setFloatingPosition((current) =>
+        clampFloatingPosition(
+          current,
+          floatingPanelRef.current,
+          floatingCollapsed,
+        ),
+      );
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [floatingCollapsed, floatingOpen]);
 
   useEffect(() => {
     let active = true;
@@ -367,6 +415,9 @@ export function RecordDetailPage() {
             type="primary"
             icon={<NotebookPen size={15} />}
             onClick={() => {
+              setFloatingPosition((current) =>
+                clampFloatingPosition(current, null, false),
+              );
               setFloatingOpen(true);
               setFloatingCollapsed(false);
             }}
