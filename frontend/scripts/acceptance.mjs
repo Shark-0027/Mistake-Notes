@@ -188,6 +188,86 @@ try {
     await context.close();
   });
 
+  await runCase("P3 分数按原始整数显示", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await page.getByText("8.36 / 10", { exact: true }).first().waitFor();
+    await openRecord(page, "wrong_001");
+    await page.getByText("8.36 / 10", { exact: true }).first().waitFor();
+    assert.equal(await page.getByText("8.36 / 10.0", { exact: true }).count(), 0);
+    await context.close();
+  });
+  await runCase("P3 catalog 错误不遮挡列表", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.route("**/api/catalog*", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "模拟 catalog 失败" }),
+      });
+    });
+    await login(page, "student_001");
+    await page.locator(".filter-alert").waitFor();
+    assert.ok((await page.locator(".record-card").count()) > 0);
+    assert.equal(await page.getByText("错题列表加载失败").count(), 0);
+    await context.close();
+  });
+
+  await runCase("P3 知识点竞态保留有效筛选", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_004");
+    await page.goto(`${baseUrl}/records?course=course_001`, {
+      waitUntil: "networkidle",
+    });
+    await page.route("**/api/catalog*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("course") === "course_002") {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
+      await route.continue();
+    });
+    await page.evaluate(() => {
+      history.pushState(
+        {},
+        "",
+        "/records?course=course_002&knowledgePoint=" +
+          encodeURIComponent("向量组的秩"),
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await page.waitForTimeout(200);
+    assert.equal(
+      new URL(page.url()).searchParams.get("knowledgePoint"),
+      "向量组的秩",
+    );
+    await page.waitForTimeout(1400);
+    assert.equal(
+      new URL(page.url()).searchParams.get("knowledgePoint"),
+      "向量组的秩",
+    );
+    await context.close();
+  });
+
+  await runCase("P3 未登录深链保留筛选", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(
+      `${baseUrl}/records?course=course_001&keyword=${encodeURIComponent("写出四阶")}`,
+      { waitUntil: "networkidle" },
+    );
+    await page.waitForURL("**/login");
+    await page.locator('input[autocomplete="username"]').fill("student_001");
+    await page.locator('input[autocomplete="current-password"]').fill(password);
+    await Promise.all([
+      page.waitForURL("**/records?course=course_001&keyword=*"),
+      page.getByRole("button", { name: "登录" }).click(),
+    ]);
+    await page.getByText("共 1 条").waitFor();
+    await context.close();
+  });
   await runCase("主题切换即时生效", async () => {
     const context = await browser.newContext();
     const page = await context.newPage();

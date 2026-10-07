@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Button,
   Card,
   Empty,
@@ -30,9 +31,12 @@ export function RecordsPage() {
     courses: [],
     knowledge_points: [],
   });
+  const [catalogCourse, setCatalogCourse] = useState<string | null | undefined>(undefined);
+  const [catalogError, setCatalogError] = useState("");
+  const catalogRequestId = useRef(0);
   const [records, setRecords] = useState<RecordSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [recordsError, setRecordsError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -41,14 +45,18 @@ export function RecordsPage() {
 
   useEffect(() => {
     let active = true;
+    const requestId = ++catalogRequestId.current;
+    setCatalogError("");
     api
       .catalog(filters.course)
       .then((response) => {
-        if (!active) return;
+        if (!active || requestId !== catalogRequestId.current) return;
         setCatalog(response);
+        setCatalogCourse(filters.course ?? null);
       })
       .catch(() => {
-        if (active) setError("筛选选项加载失败，请重试");
+        if (!active || requestId !== catalogRequestId.current) return;
+        setCatalogError("筛选选项加载失败，请重试");
       });
     return () => {
       active = false;
@@ -57,6 +65,8 @@ export function RecordsPage() {
 
   useEffect(() => {
     if (
+      catalogCourse === (filters.course ?? null) &&
+      !catalogError &&
       filters.knowledgePoint &&
       !catalog.knowledge_points.includes(filters.knowledgePoint)
     ) {
@@ -65,12 +75,12 @@ export function RecordsPage() {
         keyword: filters.keyword,
       });
     }
-  }, [catalog.knowledge_points, filters]);
+  }, [catalog.knowledge_points, catalogCourse, catalogError, filters]);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    setError("");
+    setRecordsError("");
     api
       .records(filters)
       .then((response) => {
@@ -79,7 +89,9 @@ export function RecordsPage() {
       .catch((reason) => {
         if (controller.signal.aborted) return;
         setRecords([]);
-        setError(reason instanceof Error ? reason.message : "列表加载失败，请重试");
+        setRecordsError(
+          reason instanceof Error ? reason.message : "列表加载失败，请重试",
+        );
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -112,7 +124,7 @@ export function RecordsPage() {
           <h1>错题整理与复习</h1>
         </div>
         <span className="result-count">
-          {loading ? "正在加载" : `共 ${records.length} 条`}
+          {loading ? "正在加载" : recordsError ? "加载失败" : `共 ${records.length} 条`}
         </span>
       </div>
 
@@ -178,6 +190,14 @@ export function RecordsPage() {
             重置
           </Button>
         </div>
+        {catalogError && (
+          <Alert
+            className="filter-alert"
+            type="warning"
+            showIcon
+            message={catalogError}
+          />
+        )}
       </Card>
 
       {loading ? (
@@ -188,13 +208,13 @@ export function RecordsPage() {
             </Card>
           ))}
         </div>
-      ) : error ? (
+      ) : recordsError ? (
         <Card className="surface-card state-card">
           <Result
             status="error"
             icon={<FilterX size={34} />}
             title="错题列表加载失败"
-            subTitle={error}
+            subTitle={recordsError}
             extra={
               <Button
                 type="primary"
@@ -222,7 +242,7 @@ export function RecordsPage() {
         </div>
       )}
 
-      {!loading && !error && records.length > 0 && (
+      {!loading && !recordsError && records.length > 0 && (
         <div className="tag-row result-note">
           <Tag className="neutral-tag">仅展示当前账号的记录</Tag>
           <Tag className="neutral-tag">历史评分原样显示</Tag>

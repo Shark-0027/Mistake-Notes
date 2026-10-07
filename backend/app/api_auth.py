@@ -30,9 +30,16 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 @router.get("/me", response_model=AuthResponse)
 def me(request: Request, student: Student = Depends(require_student)) -> AuthResponse:
+    csrf_token = request.session.get(csrf_session_key)
+    if not csrf_token:
+        request.session.clear()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="会话已失效",
+        )
     return AuthResponse(
         user=StudentOut.model_validate(student),
-        csrf_token=request.session[csrf_session_key],
+        csrf_token=csrf_token,
     )
 
 

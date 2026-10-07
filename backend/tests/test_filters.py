@@ -44,6 +44,9 @@ def test_course_aliases_apply_for_records_and_catalog(client: TestClient) -> Non
             "wrong_004",
             "wrong_005",
         ]
+        detail = client.get("/api/records/wrong_001")
+        assert detail.json()["score_display"] == "8.36"
+        assert detail.json()["max_score_display"] == "10"
 
     login(client, "student_004")
     for parameter in ("course", "courseId"):

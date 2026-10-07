@@ -250,6 +250,10 @@ textarea {
   gap: 12px;
 }
 
+.filter-alert {
+  margin-top: 12px;
+}
+
 .records-list {
   display: grid;
   gap: 12px;
@@ -656,4 +660,3 @@ textarea {
     animation-iteration-count: 1 !important;
   }
 }
-

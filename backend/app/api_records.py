@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["records"])
 def score_text(value: Decimal | float | int) -> str:
     decimal_value = Decimal(str(value)).normalize()
     text = format(decimal_value, "f")
-    return text if "." in text else f"{text}.0"
+    return text
 
 
 def knowledge_names(record: Record) -> list[str]:
