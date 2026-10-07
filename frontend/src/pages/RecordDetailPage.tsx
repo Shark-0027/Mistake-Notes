@@ -6,6 +6,7 @@ import {
   Card,
   Drawer,
   Empty,
+  Image,
   Input,
   Result,
   Skeleton,
@@ -18,17 +19,19 @@ import {
   Copy,
   Eraser,
   History,
+  ImagePlus,
   NotebookPen,
   RotateCcw,
   Save,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { MathContent } from "../components/MathContent";
-import type { Note, NoteVersion, RecordDetail } from "../types";
+import type { Note, NoteImage, NoteVersion, RecordDetail } from "../types";
 
 const versionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -119,11 +122,19 @@ export function RecordDetailPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const [images, setImages] = useState<NoteImage[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(true);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
+    setImagesLoading(true);
+    setImageError("");
     api
       .record(id)
       .then((response) => {
@@ -137,6 +148,21 @@ export function RecordDetailPage() {
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+    api
+      .noteImages(id)
+      .then((response) => {
+        if (active) setImages(response);
+      })
+      .catch((reason) => {
+        if (active) {
+          setImageError(
+            reason instanceof Error ? reason.message : "图片加载失败",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setImagesLoading(false);
       });
     return () => {
       active = false;
@@ -213,6 +239,65 @@ export function RecordDetailPage() {
       message.error(reason instanceof Error ? reason.message : "恢复失败，请重试");
     } finally {
       setRestoringVersion(null);
+    }
+  }
+
+  async function uploadImage(file: File) {
+    if (!record) return;
+    if (!csrfToken) {
+      const messageText = "会话校验信息缺失，请重新登录后再上传";
+      setImageError(messageText);
+      message.error(messageText);
+      return;
+    }
+    setImageUploading(true);
+    setImageError("");
+    try {
+      const uploaded = await api.uploadNoteImage(record.id, file, csrfToken);
+      setImages((current) => [...current, uploaded]);
+      message.success("图片已上传");
+    } catch (reason) {
+      const messageText =
+        reason instanceof Error ? reason.message : "图片上传失败，请重试";
+      setImageError(messageText);
+      message.error(`${messageText}；已输入文字不会丢失`);
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
+  function handleImageSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) void uploadImage(file);
+  }
+
+  function handleImagePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const item = Array.from(event.clipboardData.items).find(
+      (entry) => entry.kind === "file" && entry.type.startsWith("image/"),
+    );
+    const file =
+      item?.getAsFile() ??
+      Array.from(event.clipboardData.files).find((entry) =>
+        entry.type.startsWith("image/"),
+      );
+    if (file) {
+      event.preventDefault();
+      void uploadImage(file);
+    }
+  }
+
+  async function deleteImage(image: NoteImage) {
+    if (!csrfToken) return;
+    setDeletingImageId(image.id);
+    try {
+      await api.deleteNoteImage(image.id, csrfToken);
+      setImages((current) => current.filter((item) => item.id !== image.id));
+      message.success("图片已删除");
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : "图片删除失败");
+    } finally {
+      setDeletingImageId(null);
     }
   }
 
@@ -323,9 +408,28 @@ export function RecordDetailPage() {
         />
         <div className="note-version-row">
           <Tag className="note-version-badge">版本 {record.note.version_number}</Tag>
-          <Button icon={<History size={15} />} onClick={openHistory}>
-            历史版本
-          </Button>
+          <div className="note-tool-actions">
+            <input
+              ref={imageInputRef}
+              className="note-image-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              aria-label="选择笔记图片"
+              onChange={handleImageSelection}
+            />
+            <Button
+              icon={<ImagePlus size={15} />}
+              loading={imageUploading}
+              disabled={!csrfToken || imageUploading}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              插入图片
+            </Button>
+            <Button icon={<History size={15} />} onClick={openHistory}>
+              历史版本
+            </Button>
+          </div>
         </div>
         {csrfToken ? null : (
           <Alert
@@ -351,6 +455,7 @@ export function RecordDetailPage() {
             value={note.cause_note}
             autoSize={{ minRows: 3, maxRows: 7 }}
             placeholder="记录这道题出错的原因"
+            onPaste={handleImagePaste}
             onChange={(event) =>
               setNote({ ...note, cause_note: event.target.value })
             }
@@ -373,10 +478,55 @@ export function RecordDetailPage() {
             value={note.review_note}
             autoSize={{ minRows: 5, maxRows: 10 }}
             placeholder="写下复习思路和需要巩固的知识点"
+            onPaste={handleImagePaste}
             onChange={(event) =>
               setNote({ ...note, review_note: event.target.value })
             }
           />
+        </div>
+        <div className="note-image-block">
+          <div className="note-image-heading">
+            <span className="field-label">笔记图片</span>
+            <span>单张不超过 5MB，支持 JPG、PNG、WebP</span>
+          </div>
+          {imageError ? <Alert type="error" showIcon message={imageError} /> : null}
+          {imagesLoading ? (
+            <div className="note-image-state">
+              <Spin size="small" />
+            </div>
+          ) : images.length ? (
+            <div className="note-image-grid">
+              {images.map((image) => (
+                <div className="note-image-item" key={image.id}>
+                  <Image
+                    className="note-image-thumbnail"
+                    src={image.url}
+                    alt={image.filename}
+                    title={`${image.filename}${
+                      image.version_number
+                        ? ` · 版本 ${image.version_number}`
+                        : ""
+                    }`}
+                  />
+                  <div className="note-image-item-actions">
+                    <span title={image.filename}>{image.filename}</span>
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<Trash2 size={13} />}
+                      loading={deletingImageId === image.id}
+                      onClick={() => void deleteImage(image)}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="empty-value">暂无图片</span>
+          )}
         </div>
         <div className="note-actions">
           <span className="save-hint">

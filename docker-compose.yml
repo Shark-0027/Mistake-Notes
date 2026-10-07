@@ -29,6 +29,9 @@ services:
       DATASET_PATH: /app/data/wrong-answers-20/dataset.json
       SCHEMA_PATH: /app/data/wrong-answers-20/schema.json
       FRONTEND_DIST: /app/frontend_dist
+      NOTE_IMAGE_DIR: /app/note_images
+    volumes:
+      - note_images:/app/note_images
     ports:
       - "8000:8000"
     depends_on:
@@ -50,4 +53,6 @@ services:
 volumes:
   postgres_data:
     name: mistake_notes_postgres_data
+  note_images:
+    name: mistake_notes_note_images
 

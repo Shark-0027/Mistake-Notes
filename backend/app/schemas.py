@@ -59,6 +59,16 @@ class NoteVersionOut(BaseModel):
     created_at: datetime
 
 
+class NoteImageOut(BaseModel):
+    id: str
+    filename: str
+    mime: str
+    size: int
+    created_at: datetime
+    version_number: int | None
+    url: str
+
+
 class RecordDetail(RecordSummary):
     question_format: str
     original_answer: str

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 from .api_auth import router as auth_router
+from .api_note_images import router as note_images_router
 from .api_records import router as records_router
 from .config import Settings, get_settings
 from .database import Base, SessionLocal, engine
@@ -41,7 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=[],
         allow_credentials=False,
-        allow_methods=["GET", "POST", "PUT"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type", "X-CSRF-Token"],
     )
 
@@ -53,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(records_router)
+    app.include_router(note_images_router)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa_fallback(full_path: str) -> FileResponse:

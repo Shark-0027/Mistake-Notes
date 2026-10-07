@@ -534,6 +534,17 @@ textarea {
   margin-bottom: 16px;
 }
 
+.note-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.note-image-input {
+  display: none;
+}
+
 .note-version-badge {
   margin: 0 !important;
   color: var(--brand) !important;
@@ -561,6 +572,78 @@ textarea {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 9px;
+}
+
+.note-image-block {
+  margin-bottom: 17px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.note-image-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.note-image-heading > span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.note-image-state {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+}
+
+.note-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 11px;
+  margin-top: 11px;
+}
+
+.note-image-item {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.note-image-thumbnail {
+  display: block;
+  width: 100%;
+  height: 108px;
+  object-fit: cover;
+  background: var(--panel);
+}
+
+.note-image-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 6px 7px;
+}
+
+.note-image-item-actions > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-image-item-actions .ant-btn {
+  flex: 0 0 auto;
+  padding-inline: 4px;
 }
 
 .save-hint {
@@ -739,9 +822,16 @@ textarea {
   }
 
   .record-card-bottom,
-  .note-actions {
+  .note-actions,
+  .note-version-row,
+  .note-image-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .note-tool-actions,
+  .note-action-buttons {
+    justify-content: flex-start;
   }
 
   .detail-link {

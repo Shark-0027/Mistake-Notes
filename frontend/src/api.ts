@@ -2,6 +2,7 @@ import type {
   AuthResponse,
   CatalogResponse,
   Note,
+  NoteImage,
   NoteVersion,
   RecordDetail,
   RecordFilters,
@@ -26,7 +27,9 @@ async function request<T>(
     credentials: "same-origin",
     ...init,
     headers: {
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.body && !(init.body instanceof FormData)
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init.headers,
     },
   });
@@ -108,6 +111,29 @@ export const api = {
         headers: { "X-CSRF-Token": csrfToken },
       },
     );
+  },
+  noteImages(id: string) {
+    return request<NoteImage[]>(
+      `/api/records/${encodeURIComponent(id)}/note-images`,
+    );
+  },
+  uploadNoteImage(id: string, file: File, csrfToken: string) {
+    const body = new FormData();
+    body.append("file", file);
+    return request<NoteImage>(
+      `/api/records/${encodeURIComponent(id)}/note-images`,
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+        body,
+      },
+    );
+  },
+  deleteNoteImage(imageId: string, csrfToken: string) {
+    return request<void>(`/api/note-images/${encodeURIComponent(imageId)}`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrfToken },
+    });
   },
 };
 

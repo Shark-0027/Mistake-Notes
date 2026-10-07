@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     dataset_path: Path = Path(__file__).resolve().parents[2] / "data/wrong-answers-20/dataset.json"
     schema_path: Path = Path(__file__).resolve().parents[2] / "data/wrong-answers-20/schema.json"
     frontend_dist: Path = Path(__file__).resolve().parents[1] / "frontend_dist"
+    note_image_dir: Path = Path("/app/note_images")
     seed_password: str = "ExamOnly_2026!"
     session_cookie: str = "mistake_notes_session"
     session_max_age: int = 60 * 60 * 24 * 14

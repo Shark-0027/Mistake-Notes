@@ -6,6 +6,10 @@ const chromePath =
   process.env.CHROME_PATH ||
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const password = "ExamOnly_2026!";
+const onePixelPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl9sAAAAASUVORK5CYII=",
+  "base64",
+);
 
 async function login(page, username) {
   await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle" });
@@ -128,6 +132,107 @@ try {
       `版本 ${currentVersion + 2}`,
     );
     assert.equal(await page.locator("#cause-note").inputValue(), oldCause);
+    await context.close();
+  });
+
+  await runCase("笔记图片上传、刷新、重登与删除", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, "student_001");
+    await openRecord(page, "wrong_001");
+
+    const filename = `note-image-${Date.now()}.png`;
+    const imageInput = page.locator(".note-image-input");
+    const uploadResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/records/wrong_001/note-images") &&
+        response.request().method() === "POST",
+    );
+    await imageInput.setInputFiles({
+      name: filename,
+      mimeType: "image/png",
+      buffer: onePixelPng,
+    });
+    assert.equal((await uploadResponse).status(), 201);
+
+    const uploadedItem = page
+      .locator(".note-image-item")
+      .filter({ hasText: filename });
+    await uploadedItem.waitFor();
+    const imageSource = await uploadedItem.locator("img").getAttribute("src");
+    assert.match(imageSource || "", /^\/api\/note-images\//);
+    const imageResponse = await context.request.get(
+      new URL(imageSource, baseUrl).href,
+    );
+    assert.equal(imageResponse.status(), 200);
+    assert.equal(imageResponse.headers()["content-type"], "image/png");
+
+    await page.locator("#cause-note").fill("上传图片后仍保留文字");
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/records/wrong_001/notes") &&
+          response.request().method() === "PUT",
+      ),
+      page.getByRole("button", { name: "保存笔记" }).click(),
+    ]);
+    await page.reload({ waitUntil: "networkidle" });
+    await page
+      .locator(".note-image-item")
+      .filter({ hasText: filename })
+      .waitFor();
+    assert.equal(
+      await page.locator("#cause-note").inputValue(),
+      "上传图片后仍保留文字",
+    );
+
+    await page.getByRole("button", { name: "退出" }).click();
+    await page.waitForURL("**/login");
+    await page.locator('input[autocomplete="username"]').fill("student_001");
+    await page.locator('input[autocomplete="current-password"]').fill(password);
+    await Promise.all([
+      page.waitForURL("**/records/wrong_001"),
+      page.getByRole("button", { name: "登录" }).click(),
+    ]);
+    await openRecord(page, "wrong_001");
+    await page
+      .locator(".note-image-item")
+      .filter({ hasText: filename })
+      .waitFor();
+
+    await page.locator("#cause-note").fill("超限失败时保留这段文字");
+    const oversizedResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/records/wrong_001/note-images") &&
+        response.request().method() === "POST",
+    );
+    await imageInput.setInputFiles({
+      name: "too-large.png",
+      mimeType: "image/png",
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1, 0),
+    });
+    assert.equal((await oversizedResponse).status(), 413);
+    await page.getByText("图片不能超过 5MB", { exact: true }).last().waitFor();
+    assert.equal(
+      await page.locator("#cause-note").inputValue(),
+      "超限失败时保留这段文字",
+    );
+
+    const deleteResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/note-images/") &&
+        response.request().method() === "DELETE",
+    );
+    await page
+      .locator(".note-image-item")
+      .filter({ hasText: filename })
+      .getByRole("button", { name: "删除" })
+      .click();
+    assert.equal((await deleteResponse).status(), 204);
+    await page
+      .locator(".note-image-item")
+      .filter({ hasText: filename })
+      .waitFor({ state: "detached" });
     await context.close();
   });
 

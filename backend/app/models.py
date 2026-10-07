@@ -161,6 +161,26 @@ class NoteVersion(Base):
         server_default=func.now(),
     )
 
+
+class NoteImage(Base):
+    __tablename__ = "note_images"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("img"))
+    record_id: Mapped[str] = mapped_column(
+        ForeignKey("records.id", ondelete="CASCADE"),
+        index=True,
+    )
+    filename: Mapped[str] = mapped_column(String(255))
+    mime: Mapped[str] = mapped_column(String(64))
+    size: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        server_default=func.now(),
+    )
+    version_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class SeedMetadata(Base):
     __tablename__ = "seed_metadata"
 

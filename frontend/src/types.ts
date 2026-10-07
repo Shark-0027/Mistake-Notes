@@ -44,6 +44,16 @@ export interface NoteVersion extends Note {
   created_at: string;
 }
 
+export interface NoteImage {
+  id: string;
+  filename: string;
+  mime: string;
+  size: number;
+  created_at: string;
+  version_number: number | null;
+  url: string;
+}
+
 export interface RecordDetail extends RecordSummary {
   question_format: string;
   original_answer: string;

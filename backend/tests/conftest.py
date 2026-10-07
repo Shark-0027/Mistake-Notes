@@ -18,10 +18,16 @@ os.environ.setdefault("SCHEMA_PATH", str(ROOT / "data/wrong-answers-20/schema.js
 
 
 @pytest.fixture()
-def client() -> TestClient:
+def client(tmp_path: Path) -> TestClient:
+    from app.config import get_settings
     from app.main import create_app
 
-    with TestClient(create_app()) as test_client:
+    app = create_app()
+    test_settings = get_settings().model_copy(
+        update={"note_image_dir": tmp_path / "note_images"}
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    with TestClient(app) as test_client:
         yield test_client
 
 
