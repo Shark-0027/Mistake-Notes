@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:record": "node scripts/record-demo.mjs"
   },
   "dependencies": {
     "antd": "5.22.6",
